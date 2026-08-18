@@ -21,16 +21,16 @@ export const StatCard: React.FC<StatCardProps> = ({
   colorTheme = "brand",
 }) => {
   const themeColors = {
-    brand: "bg-brand-500/10 text-brand-600 dark:text-brand-400 border-brand-500/20",
-    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-    purple: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    brand: "bg-blue-50 text-blue-700 border-blue-200",
+    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    amber: "bg-amber-50 text-amber-700 border-amber-200",
+    purple: "bg-purple-50 text-purple-700 border-purple-200",
   };
 
   return (
-    <div className="glass-card rounded-2xl p-5 border flex flex-col justify-between">
+    <div className="glass-card rounded-2xl p-5 border flex flex-col justify-between shadow-2xs">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <span className="text-xs font-semibold text-slate-500">
           {title}
         </span>
         <div className={`p-2.5 rounded-xl border ${themeColors[colorTheme]}`}>
