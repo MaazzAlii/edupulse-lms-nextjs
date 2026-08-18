@@ -250,14 +250,14 @@ export default function CourseDetailsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2 space-y-12">
             {/* What you'll learn (Benefits) */}
-            <div className="p-6 rounded-3xl glass-card border space-y-4">
-              <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">
+            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+              <h2 className="text-lg font-extrabold text-slate-900">
                 What You Will Learn
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {course.benefits.map((benefit, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <div key={i} className="flex items-start gap-2 text-xs text-slate-700">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <span>{benefit}</span>
                   </div>
                 ))}
@@ -268,7 +268,7 @@ export default function CourseDetailsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                  <h2 className="text-lg font-extrabold text-slate-900">
                     Course Curriculum
                   </h2>
                   <p className="text-xs text-slate-500">
@@ -290,11 +290,11 @@ export default function CourseDetailsPage() {
             </div>
 
             {/* Requirements / Prerequisites */}
-            <div className="p-6 rounded-3xl glass-card border space-y-3">
-              <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">
+            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3">
+              <h2 className="text-lg font-extrabold text-slate-900">
                 Requirements & Prerequisites
               </h2>
-              <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400 list-disc list-inside">
+              <ul className="space-y-2 text-xs text-slate-600 list-disc list-inside">
                 {course.prerequisites.map((p, i) => (
                   <li key={i}>{p}</li>
                 ))}
@@ -302,8 +302,8 @@ export default function CourseDetailsPage() {
             </div>
 
             {/* Instructor Profile Details */}
-            <div className="p-6 rounded-3xl glass-card border space-y-4">
-              <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">
+            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+              <h2 className="text-lg font-extrabold text-slate-900">
                 About Your Instructor
               </h2>
               <div className="flex items-start gap-4">
@@ -313,13 +313,13 @@ export default function CourseDetailsPage() {
                   className="w-16 h-16 rounded-2xl object-cover border-2 border-brand-500 shadow-md"
                 />
                 <div className="space-y-1">
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  <h3 className="font-extrabold text-sm text-slate-900">
                     {course.instructor.name}
                   </h3>
-                  <p className="text-xs text-brand-600 dark:text-brand-400 font-semibold">
+                  <p className="text-xs text-brand-600 font-semibold">
                     {course.instructor.role}
                   </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 pt-2 leading-relaxed">
+                  <p className="text-xs text-slate-600 pt-2 leading-relaxed">
                     {course.instructor.bio}
                   </p>
                 </div>
@@ -329,9 +329,9 @@ export default function CourseDetailsPage() {
             {/* Reviews Section */}
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                   <span>Student Feedback & Reviews</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-500">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
                     {course.reviews.length}
                   </span>
                 </h2>
@@ -341,9 +341,9 @@ export default function CourseDetailsPage() {
               {isEnrolled && (
                 <form
                   onSubmit={handleReviewSubmit}
-                  className="p-5 rounded-2xl glass-card border space-y-3"
+                  className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3"
                 >
-                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  <h3 className="text-xs font-bold text-slate-800">
                     Leave a Course Review
                   </h3>
                   <div className="flex items-center gap-2">
