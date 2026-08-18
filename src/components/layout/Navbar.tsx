@@ -122,7 +122,7 @@ export const Navbar: React.FC = () => {
             <button
               onClick={toggleUserRole}
               title="Click to toggle between Admin and Student role for testing"
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs transition"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm transition"
             >
               <ShieldCheck className={`w-3.5 h-3.5 ${user.role === "admin" ? "text-emerald-600" : "text-slate-400"}`} />
               Role: <span className="capitalize font-bold text-brand-600">{user.role}</span>
