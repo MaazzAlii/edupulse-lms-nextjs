@@ -29,9 +29,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
   const totalHours = (totalMinutes / 60).toFixed(1);
 
   return (
-    <div className="glass-card rounded-2xl overflow-hidden flex flex-col group h-full hover:shadow-2xl hover:shadow-brand-500/10 hover:-translate-y-1 transition-all duration-300">
+    <div className="glass-card rounded-2xl overflow-hidden flex flex-col group h-full hover:shadow-xl hover:shadow-brand-500/10 hover:-translate-y-1 transition-all duration-300">
       {/* Thumbnail Container */}
-      <div className="relative aspect-video w-full overflow-hidden bg-slate-800">
+      <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
         <img
           src={course.thumbnail}
           alt={course.title}
@@ -39,22 +39,22 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
         />
 
         {/* Category Pill */}
-        <span className="absolute top-3 left-3 px-2.5 py-1 text-[11px] font-bold rounded-full bg-slate-900/80 text-white backdrop-blur-md border border-white/10">
+        <span className="absolute top-3 left-3 px-2.5 py-1 text-[11px] font-bold rounded-full bg-white/90 text-slate-800 backdrop-blur-md shadow-xs border border-slate-200/60">
           {course.category}
         </span>
 
         {/* Level Pill */}
-        <span className="absolute top-3 right-3 px-2.5 py-1 text-[11px] font-semibold rounded-full bg-brand-600/90 text-white backdrop-blur-md">
+        <span className="absolute top-3 right-3 px-2.5 py-1 text-[11px] font-bold rounded-full bg-brand-600 text-white shadow-xs">
           {course.level}
         </span>
 
         {/* Enrolled Badge Overlay */}
         {isEnrolled && (
-          <div className="absolute bottom-3 left-3 right-3 bg-slate-900/90 backdrop-blur-md rounded-lg p-2 border border-emerald-500/30 flex items-center justify-between">
-            <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
+          <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md rounded-lg p-2 border border-emerald-500/30 shadow-sm flex items-center justify-between">
+            <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
               <BookOpen className="w-3.5 h-3.5" /> Enrolled
             </span>
-            <span className="text-[11px] font-bold text-white">{progress}% Complete</span>
+            <span className="text-[11px] font-bold text-slate-800">{progress}% Complete</span>
           </div>
         )}
       </div>
