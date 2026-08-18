@@ -9,6 +9,10 @@ const config: Config = {
   darkMode: "class",
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-inter)", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        heading: ["var(--font-heading)", "sans-serif"],
+      },
       colors: {
         brand: {
           50: "#eff6ff",
@@ -33,7 +37,7 @@ const config: Config = {
           card: "#111827",
           border: "#1F2937",
           muted: "#9CA3AF",
-        }
+        },
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
