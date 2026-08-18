@@ -47,7 +47,7 @@ export const CourseFilter: React.FC<CourseFilterProps> = ({
             placeholder="Search by course title, keywords, or topics..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 shadow-2xs"
+            className="w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 shadow-sm"
           />
         </div>
 
@@ -59,7 +59,7 @@ export const CourseFilter: React.FC<CourseFilterProps> = ({
             <select
               value={selectedLevel}
               onChange={(e) => onSelectLevel(e.target.value as CourseLevel | "All")}
-              className="px-3 py-2 text-xs rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-slate-700 shadow-2xs font-medium"
+              className="px-3 py-2 text-xs rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-slate-700 shadow-sm font-medium"
             >
               {levels.map((lvl) => (
                 <option key={lvl} value={lvl}>
@@ -75,7 +75,7 @@ export const CourseFilter: React.FC<CourseFilterProps> = ({
             <select
               value={sortBy}
               onChange={(e) => onSortChange(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-slate-700 shadow-2xs font-medium"
+              className="px-3 py-2 text-xs rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-slate-700 shadow-sm font-medium"
             >
               <option value="popular">Most Popular</option>
               <option value="highest-rated">Highest Rated</option>
@@ -95,7 +95,7 @@ export const CourseFilter: React.FC<CourseFilterProps> = ({
             <button
               key={cat}
               onClick={() => onSelectCategory(cat)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 shadow-2xs ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 shadow-sm ${
                 isSelected
                   ? "bg-brand-600 text-white shadow-brand-500/20 scale-105"
                   : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
