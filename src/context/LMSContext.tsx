@@ -68,7 +68,7 @@ export const LMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [cart, setCart] = useState<ICourse[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | "All">("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Load state from localStorage on client mount
@@ -105,7 +105,17 @@ export const LMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [courses, user, orders, notifications, isInitialized]);
 
   const toggleDarkMode = () => {
-    setIsDarkMode((prev) => !prev);
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      if (typeof document !== "undefined") {
+        if (next) {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      }
+      return next;
+    });
   };
 
   const toggleUserRole = () => {
