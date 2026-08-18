@@ -31,11 +31,14 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
   return (
     <div className="glass-card rounded-2xl overflow-hidden flex flex-col group h-full hover:shadow-xl hover:shadow-brand-500/10 hover:-translate-y-1 transition-all duration-300">
       {/* Thumbnail Container */}
-      <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
+      <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
         <img
           src={course.thumbnail}
-          alt={course.title}
+          alt=""
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=800&auto=format&fit=crop";
+          }}
         />
 
         {/* Category Pill */}
