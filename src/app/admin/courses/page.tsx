@@ -76,7 +76,7 @@ export default function AdminCoursesPage() {
       </div>
 
       {/* Search & Stats Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:max-w-md">
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
           <input
