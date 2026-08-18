@@ -251,10 +251,10 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-4xl my-8 rounded-3xl glass-card border bg-white dark:bg-slate-900 shadow-2xl p-6 sm:p-8 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+      <div className="relative w-full max-w-4xl my-8 rounded-3xl bg-white border border-slate-200 shadow-2xl p-6 sm:p-8 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center">
               <BookPlus className="w-5 h-5" />
