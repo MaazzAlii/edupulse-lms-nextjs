@@ -51,7 +51,7 @@ export const CurriculumAccordion: React.FC<CurriculumAccordionProps> = ({
         return (
           <div
             key={section.id}
-            className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs"
+            className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm"
           >
             {/* Section Header */}
             <button
