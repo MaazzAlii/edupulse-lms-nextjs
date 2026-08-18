@@ -80,24 +80,24 @@ export const Navbar: React.FC = () => {
               placeholder="Search courses, technologies, instructors..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-sm rounded-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-brand-500/40 dark:text-slate-100 placeholder-slate-400 transition-all"
+              className="w-full pl-10 pr-4 py-2 text-sm rounded-full bg-slate-100/90 hover:bg-slate-100 border border-slate-200 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-slate-900 placeholder-slate-400 transition-all"
             />
           </form>
 
           {/* Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
+          <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold text-slate-600">
             <Link
               href="/courses"
-              className={`hover:text-brand-600 dark:hover:text-brand-400 transition-colors ${
-                pathname === "/courses" ? "text-brand-600 dark:text-brand-400 font-semibold" : ""
+              className={`hover:text-brand-600 transition-colors ${
+                pathname === "/courses" ? "text-brand-600 font-bold" : ""
               }`}
             >
               Explore Courses
             </Link>
             <Link
               href="/my-courses"
-              className={`hover:text-brand-600 dark:hover:text-brand-400 transition-colors ${
-                pathname === "/my-courses" ? "text-brand-600 dark:text-brand-400 font-semibold" : ""
+              className={`hover:text-brand-600 transition-colors ${
+                pathname === "/my-courses" ? "text-brand-600 font-bold" : ""
               }`}
             >
               My Learning
@@ -106,8 +106,8 @@ export const Navbar: React.FC = () => {
             {user.role === "admin" && (
               <Link
                 href="/admin"
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold hover:bg-amber-500/20 transition-colors ${
-                  pathname.startsWith("/admin") ? "ring-1 ring-amber-500" : ""
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 font-bold border border-amber-200 hover:bg-amber-100 transition-colors ${
+                  pathname.startsWith("/admin") ? "ring-2 ring-amber-400" : ""
                 }`}
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
@@ -122,19 +122,19 @@ export const Navbar: React.FC = () => {
             <button
               onClick={toggleUserRole}
               title="Click to toggle between Admin and Student role for testing"
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs transition"
             >
-              <ShieldCheck className={`w-3.5 h-3.5 ${user.role === "admin" ? "text-emerald-500" : "text-slate-400"}`} />
-              Role: <span className="capitalize font-bold text-brand-600 dark:text-brand-400">{user.role}</span>
+              <ShieldCheck className={`w-3.5 h-3.5 ${user.role === "admin" ? "text-emerald-600" : "text-slate-400"}`} />
+              Role: <span className="capitalize font-bold text-brand-600">{user.role}</span>
             </button>
 
             {/* Dark Mode Toggle */}
             <button
               onClick={toggleDarkMode}
-              className="p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition"
               aria-label="Toggle theme"
             >
-              {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+              {isDarkMode ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-slate-600" />}
             </button>
 
             {/* Notification Bell */}
