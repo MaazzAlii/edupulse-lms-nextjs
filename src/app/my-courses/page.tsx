@@ -33,21 +33,21 @@ export default function MyCoursesPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Header */}
       <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-wider text-brand-500">
+        <span className="text-xs font-bold uppercase tracking-wider text-brand-600">
           Student Portal
         </span>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mt-1">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-1">
           My Enrolled Courses
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2">
+        <p className="text-xs sm:text-sm text-slate-600 mt-2">
           Track your course completion, resume video lessons, and claim your verified certificates.
         </p>
       </div>
 
       {enrolledCourses.length === 0 ? (
-        <div className="text-center py-20 glass-card rounded-3xl border space-y-4">
+        <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 shadow-sm space-y-4">
           <BookOpen className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+          <h3 className="text-lg font-bold text-slate-800">
             You are not enrolled in any courses yet
           </h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
@@ -70,22 +70,22 @@ export default function MyCoursesPage() {
             return (
               <div
                 key={course.id}
-                className="glass-card rounded-2xl overflow-hidden border flex flex-col justify-between group hover:shadow-2xl transition duration-300"
+                className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col justify-between group hover:shadow-xl hover:border-brand-500/40 transition duration-300"
               >
                 <div>
-                  <div className="relative aspect-video w-full overflow-hidden bg-slate-800">
+                  <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
                     <img
                       src={course.thumbnail}
                       alt={course.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <span className="absolute top-3 left-3 px-2.5 py-1 text-[11px] font-bold rounded-full bg-slate-900/80 text-white backdrop-blur-md">
+                    <span className="absolute top-3 left-3 px-2.5 py-1 text-[11px] font-bold rounded-full bg-white/90 text-slate-800 backdrop-blur-md shadow-xs border border-slate-200/60">
                       {course.category}
                     </span>
                   </div>
 
                   <div className="p-5 space-y-3">
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 line-clamp-2">
+                    <h3 className="font-bold text-sm text-slate-900 line-clamp-2">
                       {course.title}
                     </h3>
                     <p className="text-xs text-slate-500">
@@ -95,17 +95,17 @@ export default function MyCoursesPage() {
                     {/* Progress Bar */}
                     <div className="space-y-1.5 pt-2">
                       <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-slate-600 dark:text-slate-400">Progress</span>
-                        <span className={isCompleted ? "text-emerald-500 font-extrabold" : "text-brand-500"}>
+                        <span className="text-slate-600">Progress</span>
+                        <span className={isCompleted ? "text-emerald-600 font-extrabold" : "text-brand-600"}>
                           {progress}%
                         </span>
                       </div>
-                      <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
                         <div
                           className={`h-full transition-all duration-500 ${
                             isCompleted
                               ? "bg-emerald-500"
-                              : "bg-gradient-to-r from-brand-600 to-accent-500"
+                              : "bg-gradient-to-r from-brand-600 to-indigo-600"
                           }`}
                           style={{ width: `${progress}%` }}
                         />
@@ -118,16 +118,16 @@ export default function MyCoursesPage() {
                 <div className="p-5 pt-0 flex gap-2">
                   <Link
                     href={`/learn/${course.id}`}
-                    className="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-brand-500/20 transition"
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs text-center transition flex items-center justify-center gap-1.5 shadow-md shadow-brand-500/20"
                   >
-                    <PlayCircle className="w-4 h-4" />
-                    <span>{progress > 0 ? "Resume Learning" : "Start Course"}</span>
+                    <PlayCircle className="w-3.5 h-3.5" />
+                    <span>{progress > 0 ? "Resume Course" : "Start Course"}</span>
                   </Link>
 
                   {isCompleted && (
                     <button
                       onClick={() => setSelectedCertificateCourse(course)}
-                      className="px-3 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-bold transition flex items-center gap-1"
+                      className="px-3 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-bold text-xs transition flex items-center gap-1"
                       title="View Certificate"
                     >
                       <Award className="w-4 h-4" />
