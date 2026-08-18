@@ -51,12 +51,12 @@ export const CurriculumAccordion: React.FC<CurriculumAccordionProps> = ({
         return (
           <div
             key={section.id}
-            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 overflow-hidden shadow-sm"
+            className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs"
           >
             {/* Section Header */}
             <button
               onClick={() => toggleSection(section.id)}
-              className="w-full px-5 py-4 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition text-left"
+              className="w-full px-5 py-4 flex items-center justify-between bg-slate-50/80 hover:bg-slate-100 transition text-left"
             >
               <div className="flex items-center gap-3">
                 <span className="w-6 h-6 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold text-xs flex items-center justify-center">
