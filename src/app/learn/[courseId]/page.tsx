@@ -131,7 +131,7 @@ export default function CourseLearningPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top Classroom Bar */}
-      <div className="border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 sm:px-6 py-3 flex items-center justify-between sticky top-16 z-40 shadow-2xs">
+      <div className="border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 sm:px-6 py-3 flex items-center justify-between sticky top-16 z-40 shadow-sm">
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href={`/courses/${course.id}`}
@@ -193,7 +193,7 @@ export default function CourseLearningPage() {
             )}
 
             {/* Lesson Action Bar */}
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-4">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-base font-extrabold text-slate-900">
                   {currentLesson?.title}
