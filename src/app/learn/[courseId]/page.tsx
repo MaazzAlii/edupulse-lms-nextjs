@@ -129,22 +129,22 @@ export default function CourseLearningPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#070A11]">
+    <div className="min-h-screen bg-slate-50">
       {/* Top Classroom Bar */}
-      <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 backdrop-blur-md px-4 sm:px-6 py-3 flex items-center justify-between sticky top-16 z-40">
+      <div className="border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 sm:px-6 py-3 flex items-center justify-between sticky top-16 z-40 shadow-2xs">
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href={`/courses/${course.id}`}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-brand-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-slate-100 transition"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div className="min-w-0">
-            <h1 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white truncate">
+            <h1 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
               {course.title}
             </h1>
-            <p className="text-[11px] text-slate-400 truncate">
-              Playing: <span className="font-semibold text-brand-500">{currentLesson?.title}</span>
+            <p className="text-[11px] text-slate-500 truncate">
+              Playing: <span className="font-semibold text-brand-600">{currentLesson?.title}</span>
             </p>
           </div>
         </div>
@@ -152,12 +152,12 @@ export default function CourseLearningPage() {
         {/* Progress Bar & Certificate Indicator */}
         <div className="flex items-center gap-4 shrink-0">
           <div className="hidden sm:flex flex-col items-end">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
               <span>{progress}% Completed</span>
             </div>
-            <div className="w-32 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden mt-1">
+            <div className="w-32 h-1.5 rounded-full bg-slate-200 overflow-hidden mt-1">
               <div
-                className="h-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all duration-300"
+                className="h-full bg-gradient-to-r from-brand-600 to-emerald-500 transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -166,7 +166,7 @@ export default function CourseLearningPage() {
           {progress === 100 && (
             <Link
               href="/my-courses"
-              className="px-3 py-1.5 rounded-xl bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shadow-md animate-pulse"
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center gap-1 shadow-md animate-pulse"
             >
               <Award className="w-3.5 h-3.5" /> Claim Certificate
             </Link>
@@ -193,9 +193,9 @@ export default function CourseLearningPage() {
             )}
 
             {/* Lesson Action Bar */}
-            <div className="p-4 rounded-2xl glass-card border flex flex-wrap items-center justify-between gap-4">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+                <h2 className="text-base font-extrabold text-slate-900">
                   {currentLesson?.title}
                 </h2>
                 <span className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
@@ -208,8 +208,8 @@ export default function CourseLearningPage() {
                   onClick={() => toggleLessonCompletion(currentLesson.id)}
                   className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
                     isCurrentCompleted
-                      ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
-                      : "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700"
+                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
                   }`}
                 >
                   <CheckCircle2 className="w-4 h-4" />
@@ -219,13 +219,13 @@ export default function CourseLearningPage() {
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex border-b border-slate-200 dark:border-slate-800 text-xs font-bold">
+            <div className="flex border-b border-slate-200 text-xs font-bold">
               <button
                 onClick={() => setActiveTab("overview")}
                 className={`pb-3 px-4 transition border-b-2 ${
                   activeTab === "overview"
-                    ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                    : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                    ? "border-brand-600 text-brand-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 Lesson Overview
@@ -234,8 +234,8 @@ export default function CourseLearningPage() {
                 onClick={() => setActiveTab("qa")}
                 className={`pb-3 px-4 transition border-b-2 flex items-center gap-1.5 ${
                   activeTab === "qa"
-                    ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                    : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                    ? "border-brand-600 text-brand-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
@@ -245,8 +245,8 @@ export default function CourseLearningPage() {
                 onClick={() => setActiveTab("notes")}
                 className={`pb-3 px-4 transition border-b-2 flex items-center gap-1.5 ${
                   activeTab === "notes"
-                    ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                    : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                    ? "border-brand-600 text-brand-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
@@ -256,8 +256,8 @@ export default function CourseLearningPage() {
                 onClick={() => setActiveTab("resources")}
                 className={`pb-3 px-4 transition border-b-2 flex items-center gap-1.5 ${
                   activeTab === "resources"
-                    ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                    : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                    ? "border-brand-600 text-brand-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 <Download className="w-3.5 h-3.5" />
@@ -266,20 +266,20 @@ export default function CourseLearningPage() {
             </div>
 
             {/* TAB CONTENTS */}
-            <div className="p-6 rounded-2xl glass-card border">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
               {/* TAB 1: OVERVIEW */}
               {activeTab === "overview" && (
                 <div className="space-y-4 text-xs">
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                  <h3 className="font-bold text-sm text-slate-900">
                     About this video lesson
                   </h3>
-                  <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <p className="text-slate-600 leading-relaxed">
                     {currentLesson?.description ||
                       "In this lecture, we explore the core implementation and architecture design patterns."}
                   </p>
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border space-y-2">
-                    <span className="font-bold text-slate-800 dark:text-slate-200">Instructor Tip:</span>
-                    <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                    <span className="font-bold text-slate-800">Instructor Tip:</span>
+                    <p className="text-slate-600 leading-relaxed">
                       Follow along in your IDE, pause frequently, and test each component before moving to the next module.
                     </p>
                   </div>
