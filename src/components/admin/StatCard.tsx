@@ -28,7 +28,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   };
 
   return (
-    <div className="glass-card rounded-2xl p-5 border flex flex-col justify-between shadow-2xs">
+    <div className="glass-card rounded-2xl p-5 border flex flex-col justify-between shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-slate-500">
           {title}
