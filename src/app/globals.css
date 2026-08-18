@@ -22,27 +22,51 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased dark:bg-[#090D16] dark:text-slate-100 min-h-screen selection:bg-brand-500 selection:text-white transition-colors duration-200;
+    @apply bg-[#f8fafc] text-slate-900 antialiased min-h-screen selection:bg-brand-600 selection:text-white transition-colors duration-200;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading), var(--font-inter), sans-serif;
+    letter-spacing: -0.02em;
   }
 }
 
-/* Glassmorphism */
+/* Glassmorphism & Cards */
 .glass-panel {
-  @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 shadow-lg shadow-black/5;
+  @apply bg-white/90 backdrop-blur-xl border border-slate-200/80 shadow-xs;
 }
 
 .glass-card {
-  @apply bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/70 dark:border-slate-800/80 hover:border-brand-500/50 transition-all duration-300;
+  @apply bg-white border border-slate-200/90 shadow-sm hover:shadow-xl hover:border-brand-500/40 hover:-translate-y-0.5 transition-all duration-300;
 }
 
-/* Gradient glow effects */
+/* Light Theme Glows */
 .glow-brand {
-  box-shadow: 0 0 50px -10px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.25);
 }
 
 .glow-purple {
-  box-shadow: 0 0 50px -10px rgba(168, 85, 247, 0.3);
+  box-shadow: 0 10px 30px -10px rgba(168, 85, 247, 0.25);
+}
+
+.glow-subtle {
+  box-shadow: 0 4px 20px -2px rgba(59, 130, 246, 0.1);
+}
+
+/* Modern Gradient Text */
+.text-gradient-brand {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-cyan {
+  background: linear-gradient(135deg, #38bdf8 0%, #3b82f6 50%, #6366f1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 /* Custom modern scrollbar */
