@@ -76,7 +76,7 @@ export default function AdminCoursesPage() {
       </div>
 
       {/* Search & Stats Bar */}
-      <div className="glass-card rounded-2xl p-4 border flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:max-w-md">
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
           <input
@@ -84,22 +84,22 @@ export default function AdminCoursesPage() {
             placeholder="Search by title or category..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none"
+            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-slate-900"
           />
         </div>
 
-        <div className="text-xs text-slate-500 font-semibold">
-          Showing <strong>{filteredCourses.length}</strong> of{" "}
-          <strong>{courses.length}</strong> masterclasses
+        <div className="text-xs text-slate-600 font-semibold">
+          Showing <strong className="text-slate-900">{filteredCourses.length}</strong> of{" "}
+          <strong className="text-slate-900">{courses.length}</strong> masterclasses
         </div>
       </div>
 
       {/* Courses Table */}
-      <div className="glass-card rounded-3xl p-6 border overflow-hidden">
+      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold">
+              <tr className="border-b border-slate-200 text-slate-500 font-semibold">
                 <th className="pb-3">Course</th>
                 <th className="pb-3">Category</th>
                 <th className="pb-3">Lessons</th>
@@ -109,7 +109,7 @@ export default function AdminCoursesPage() {
                 <th className="pb-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <tbody className="divide-y divide-slate-100">
               {filteredCourses.map((course) => {
                 const totalLessons = course.sections.reduce(
                   (acc, s) => acc + s.lessons.length,
@@ -117,7 +117,7 @@ export default function AdminCoursesPage() {
                 );
 
                 return (
-                  <tr key={course.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
+                  <tr key={course.id} className="hover:bg-slate-50/80 transition">
                     <td className="py-4">
                       <div className="flex items-center gap-3">
                         <img
@@ -126,10 +126,10 @@ export default function AdminCoursesPage() {
                           className="w-14 h-10 rounded-lg object-cover"
                         />
                         <div className="max-w-xs">
-                          <p className="font-bold text-slate-900 dark:text-slate-100 line-clamp-1">
+                          <p className="font-bold text-slate-900 line-clamp-1">
                             {course.title}
                           </p>
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-[10px] text-slate-500">
                             {course.instructor.name}
                           </span>
                         </div>
@@ -137,30 +137,30 @@ export default function AdminCoursesPage() {
                     </td>
 
                     <td className="py-4">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                         {course.category}
                       </span>
                     </td>
 
-                    <td className="py-4 font-semibold text-slate-700 dark:text-slate-300">
+                    <td className="py-4 font-semibold text-slate-700">
                       {totalLessons} lessons
                     </td>
 
-                    <td className="py-4 font-extrabold text-slate-900 dark:text-white">
+                    <td className="py-4 font-extrabold text-slate-900">
                       {formatPrice(course.price)}
                     </td>
 
-                    <td className="py-4 font-semibold text-brand-500">
+                    <td className="py-4 font-semibold text-brand-600">
                       {course.purchasedCount} students
                     </td>
 
                     <td className="py-4">
                       <button
                         onClick={() => handleTogglePublish(course)}
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition ${
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition border ${
                           course.isPublished
-                            ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
-                            : "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                            : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
                         }`}
                       >
                         {course.isPublished ? "Published" : "Draft"}
@@ -171,21 +171,21 @@ export default function AdminCoursesPage() {
                       <div className="flex items-center justify-end gap-2">
                         <Link
                           href={`/courses/${course.id}`}
-                          className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-brand-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                          className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:text-brand-600 hover:bg-slate-200 transition"
                           title="View Public Page"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </Link>
                         <button
                           onClick={() => handleEdit(course)}
-                          className="p-2 rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-400 hover:bg-brand-500/20 transition"
+                          className="p-2 rounded-lg bg-brand-50 text-brand-700 border border-brand-200 hover:bg-brand-100 transition"
                           title="Edit Course"
                         >
                           <Edit className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDelete(course.id, course.title)}
-                          className="p-2 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition"
+                          className="p-2 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition"
                           title="Delete Course"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
