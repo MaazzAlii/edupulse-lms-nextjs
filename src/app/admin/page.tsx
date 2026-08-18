@@ -118,7 +118,7 @@ export default function AdminOverviewPage() {
                 <div className="w-full flex items-end justify-center h-36">
                   <div
                     style={{ height: `${(bar.val / 150) * 100}%` }}
-                    className="w-full max-w-[28px] rounded-t-lg bg-gradient-to-t from-brand-600 to-indigo-500 group-hover:from-brand-500 group-hover:to-indigo-400 transition-all duration-300 shadow-2xs"
+                    className="w-full max-w-[28px] rounded-t-lg bg-gradient-to-t from-brand-600 to-indigo-500 group-hover:from-brand-500 group-hover:to-indigo-400 transition-all duration-300 shadow-sm"
                     title={`$${bar.val * 1000}`}
                   />
                 </div>
