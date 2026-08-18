@@ -39,12 +39,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
         />
 
         {/* Category Pill */}
-        <span className="absolute top-3 left-3 px-2.5 py-1 text-[11px] font-bold rounded-full bg-white/90 text-slate-800 backdrop-blur-md shadow-xs border border-slate-200/60">
+        <span className="absolute top-3 left-3 px-2.5 py-1 text-[11px] font-bold rounded-full bg-white/90 text-slate-800 backdrop-blur-md shadow-sm border border-slate-200/60">
           {course.category}
         </span>
 
         {/* Level Pill */}
-        <span className="absolute top-3 right-3 px-2.5 py-1 text-[11px] font-bold rounded-full bg-brand-600 text-white shadow-xs">
+        <span className="absolute top-3 right-3 px-2.5 py-1 text-[11px] font-bold rounded-full bg-brand-600 text-white shadow-sm">
           {course.level}
         </span>
 
