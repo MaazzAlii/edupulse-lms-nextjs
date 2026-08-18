@@ -104,7 +104,7 @@ export default function HomePage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
           {/* Top badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-brand-200 bg-brand-50 text-brand-700 text-xs font-bold shadow-2xs">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-brand-200 bg-brand-50 text-brand-700 text-xs font-bold shadow-sm">
             <Sparkles className="w-3.5 h-3.5 animate-spin" />
             <span>Next-Generation Full-Stack LMS Platform</span>
           </div>
@@ -135,7 +135,7 @@ export default function HomePage() {
 
             <Link
               href="/courses/course-1"
-              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-bold text-sm shadow-xs flex items-center justify-center gap-2 transition"
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-bold text-sm shadow-sm flex items-center justify-center gap-2 transition"
             >
               <PlayCircle className="w-4 h-4 text-brand-600" />
               <span>Watch Free Preview</span>
@@ -144,25 +144,25 @@ export default function HomePage() {
 
           {/* Social Proof & Metrics */}
           <div className="pt-10 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto text-left">
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
               <span className="text-2xl font-extrabold text-slate-900">
                 50,000+
               </span>
               <p className="text-xs text-slate-500 mt-1">Active Engineers</p>
             </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
               <span className="text-2xl font-extrabold text-brand-600">
                 4.9 ★
               </span>
               <p className="text-xs text-slate-500 mt-1">Average Rating</p>
             </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
               <span className="text-2xl font-extrabold text-slate-900">
                 100%
               </span>
               <p className="text-xs text-slate-500 mt-1">Project-Based</p>
             </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
               <span className="text-2xl font-extrabold text-purple-600">
                 Instant
               </span>
@@ -331,7 +331,7 @@ export default function HomePage() {
             return (
               <div
                 key={idx}
-                className="rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-2xs"
+                className="rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-sm"
               >
                 <button
                   onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
