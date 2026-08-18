@@ -75,13 +75,13 @@ function CoursesContent() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Header */}
       <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-wider text-brand-500">
+        <span className="text-xs font-bold uppercase tracking-wider text-brand-600">
           Course Catalog
         </span>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mt-1">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-1">
           Explore All Engineering Masterclasses
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2">
+        <p className="text-xs sm:text-sm text-slate-600 mt-2">
           Filter by technical domain, experience level, or search for specialized tools and frameworks.
         </p>
       </div>
@@ -107,9 +107,9 @@ function CoursesContent() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 glass-card rounded-3xl border space-y-3">
+        <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 shadow-sm space-y-3">
           <BookOpen className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+          <h3 className="text-lg font-bold text-slate-800">
             No courses found matching your criteria
           </h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
@@ -121,7 +121,7 @@ function CoursesContent() {
               setLevel("All");
               setSearchQuery("");
             }}
-            className="px-4 py-2 rounded-xl bg-brand-600 text-white text-xs font-bold hover:bg-brand-500 transition"
+            className="px-4 py-2 rounded-xl bg-brand-600 text-white text-xs font-bold hover:bg-brand-500 shadow-md shadow-brand-500/20 transition"
           >
             Reset All Filters
           </button>
