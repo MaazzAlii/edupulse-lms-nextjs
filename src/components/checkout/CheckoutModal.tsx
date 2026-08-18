@@ -73,25 +73,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-3xl glass-card border p-6 sm:p-8 shadow-2xl bg-white dark:bg-slate-900 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 shadow-2xl overflow-hidden">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
         >
           <X className="w-5 h-5" />
         </button>
 
         {isSuccess ? (
           <div className="text-center py-10 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center animate-bounce">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-600 mx-auto flex items-center justify-center animate-bounce">
               <CheckCircle2 className="w-10 h-10" />
             </div>
-            <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white">
+            <h3 className="text-2xl font-extrabold text-slate-900">
               Enrollment Confirmed!
             </h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 max-w-xs mx-auto">
+            <p className="text-sm text-slate-600 max-w-xs mx-auto">
               You now have lifetime access to <strong>{course.title}</strong>. Redirecting to classroom...
             </p>
           </div>
@@ -103,31 +103,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <CreditCard className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                <h3 className="text-lg font-extrabold text-slate-900">
                   Checkout & Instant Enrollment
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-500">
                   Secured by 256-Bit SSL Encryption via Stripe Gateway
                 </p>
               </div>
             </div>
 
             {/* Course Summary Card */}
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex gap-4 mb-6">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex gap-4 mb-6">
               <img
                 src={course.thumbnail}
                 alt={course.title}
                 className="w-20 h-14 rounded-xl object-cover"
               />
               <div className="flex-1 min-w-0">
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                <h4 className="text-xs font-bold text-slate-900 truncate">
                   {course.title}
                 </h4>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   Instructor: {course.instructor.name}
                 </p>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm font-extrabold text-brand-600 dark:text-brand-400">
+                  <span className="text-sm font-extrabold text-brand-600">
                     {formatPrice(finalPrice)}
                   </span>
                   {discountPercent > 0 && (
