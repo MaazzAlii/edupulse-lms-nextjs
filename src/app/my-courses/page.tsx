@@ -15,18 +15,53 @@ import {
   Download,
   Printer,
   X,
+  LogIn,
 } from "lucide-react";
 import { ICourse } from "@/types";
 
 export default function MyCoursesPage() {
-  const { courses, user, getCourseProgress } = useLMS();
-
-  const enrolledCourses = courses.filter((c) =>
-    user.enrolledCourseIds.includes(c.id)
-  );
+  const { courses, user, getCourseProgress, openAuthModal } = useLMS();
 
   const [selectedCertificateCourse, setSelectedCertificateCourse] = useState<ICourse | null>(
     null
+  );
+
+  // If user is not signed in
+  if (!user) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-6">
+        <div className="w-16 h-16 rounded-3xl bg-brand-500/10 text-brand-600 flex items-center justify-center mx-auto shadow-inner">
+          <BookOpen className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+            Sign In to View Your Enrolled Courses
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+            Access your personalized video classroom, track lesson milestones, and download verified certificates.
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button
+            onClick={() => openAuthModal("signin")}
+            className="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg shadow-brand-500/25 flex items-center gap-2 transition"
+          >
+            <LogIn className="w-4 h-4" />
+            <span>Sign In to Account</span>
+          </button>
+          <button
+            onClick={() => openAuthModal("signup")}
+            className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
+          >
+            Create New Account
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const enrolledCourses = courses.filter((c) =>
+    user.enrolledCourseIds.includes(c.id)
   );
 
   return (
@@ -40,7 +75,7 @@ export default function MyCoursesPage() {
           My Enrolled Courses
         </h1>
         <p className="text-xs sm:text-sm text-slate-600 mt-2">
-          Track your course completion, resume video lessons, and claim your verified certificates.
+          Welcome back, <strong>{user.name}</strong>. Track your progress, resume video lessons, and claim your verified certificates.
         </p>
       </div>
 

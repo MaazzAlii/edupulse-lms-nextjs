@@ -36,7 +36,7 @@ export default function AdminOverviewPage() {
             Instructor Studio & Analytics
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Welcome back, {user.name}. Here is your platform summary and active enrollments.
+            Welcome back, {user?.name || "Admin"}. Here is your platform summary and active enrollments.
           </p>
         </div>
 

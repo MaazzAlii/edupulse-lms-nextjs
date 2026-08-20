@@ -120,3 +120,11 @@ export interface INotification {
   status: "unread" | "read";
   createdAt: string;
 }
+
+export interface IRegisterData {
+  name: string;
+  email: string;
+  password?: string;
+  role?: "user" | "admin";
+  avatar?: string;
+}

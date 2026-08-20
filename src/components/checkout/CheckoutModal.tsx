@@ -169,7 +169,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </label>
                 <input
                   type="text"
-                  defaultValue={user.name}
+                  defaultValue={user?.name || "Student Name"}
                   required
                   className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none"
                 />

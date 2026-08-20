@@ -4,6 +4,7 @@ import "./globals.css";
 import { LMSProvider } from "@/context/LMSContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { AuthModal } from "@/components/auth/AuthModal";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -21,7 +22,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "EduPulse LMS — Industrial Next.js 14 Learning Platform",
   description:
-    "Full-Stack Learning Management System built with Next.js 14, TypeScript, Tailwind CSS, Stripe Payments, and Redis session caching.",
+    "Full-Stack Learning Management System built with Next.js 14, TypeScript, Tailwind CSS, Stripe Payments, and Complete User Authentication.",
   keywords: [
     "LMS",
     "Next.js",
@@ -30,6 +31,7 @@ export const metadata: Metadata = {
     "Web Development",
     "Full Stack",
     "Stripe",
+    "Authentication",
   ],
 };
 
@@ -45,6 +47,7 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
+          <AuthModal />
         </LMSProvider>
       </body>
     </html>

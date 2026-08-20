@@ -13,7 +13,7 @@ interface CourseCardProps {
 
 export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
   const { user, getCourseProgress } = useLMS();
-  const isEnrolled = user.enrolledCourseIds.includes(course.id);
+  const isEnrolled = user ? user.enrolledCourseIds.includes(course.id) : false;
   const progress = isEnrolled ? getCourseProgress(course.id) : 0;
 
   // Calculate total lessons and estimated duration

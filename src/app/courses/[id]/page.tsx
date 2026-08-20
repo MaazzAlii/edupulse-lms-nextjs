@@ -32,7 +32,7 @@ export default function CourseDetailsPage() {
   const router = useRouter();
   const courseId = params.id as string;
 
-  const { courses, user, getCourseProgress, addReview } = useLMS();
+  const { courses, user, getCourseProgress, addReview, openAuthModal } = useLMS();
 
   const course = courses.find((c) => c.id === courseId);
 
@@ -56,7 +56,7 @@ export default function CourseDetailsPage() {
     );
   }
 
-  const isEnrolled = user.enrolledCourseIds.includes(course.id);
+  const isEnrolled = user ? user.enrolledCourseIds.includes(course.id) : false;
   const progress = isEnrolled ? getCourseProgress(course.id) : 0;
 
   const totalLessons = course.sections.reduce(
@@ -69,9 +69,23 @@ export default function CourseDetailsPage() {
     0
   );
 
+  const handleEnrollClick = () => {
+    if (!user) {
+      openAuthModal("signin", () => {
+        setIsCheckoutOpen(true);
+      });
+      return;
+    }
+    setIsCheckoutOpen(true);
+  };
+
   const handleReviewSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewComment.trim()) return;
+    if (!user) {
+      openAuthModal("signin");
+      return;
+    }
     setIsSubmittingReview(true);
     addReview(course.id, reviewRating, reviewComment);
     setReviewComment("");
@@ -119,83 +133,60 @@ export default function CourseDetailsPage() {
                   <span className="text-white text-sm">{course.rating.toFixed(1)}</span>
                   <span className="text-slate-400">({course.totalRatingsCount} ratings)</span>
                 </div>
-                <span>•</span>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 text-slate-300">
                   <Users className="w-4 h-4 text-brand-400" />
-                  <span>{course.purchasedCount} students enrolled</span>
+                  <span>{course.purchasedCount.toLocaleString()} enrolled</span>
                 </div>
-                <span>•</span>
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-slate-400" />
-                  <span>{formatDuration(totalMinutes)} total length</span>
+                <div className="flex items-center gap-1.5 text-slate-300">
+                  <Clock className="w-4 h-4 text-brand-400" />
+                  <span>{formatDuration(totalMinutes)} total</span>
                 </div>
               </div>
 
-              {/* Instructor Bio Snippet */}
-              <div className="flex items-center gap-3 pt-4 border-t border-slate-800">
+              <div className="flex items-center gap-3 pt-3">
                 <img
                   src={course.instructor.avatar}
                   alt={course.instructor.name}
-                  className="w-10 h-10 rounded-full object-cover border border-brand-500"
+                  className="w-10 h-10 rounded-full object-cover border border-slate-700"
                 />
                 <div>
-                  <span className="text-xs text-slate-400">Created by</span>
+                  <p className="text-xs text-slate-400">Created by</p>
                   <p className="text-xs font-bold text-white">{course.instructor.name}</p>
-                  <p className="text-[11px] text-slate-400">{course.instructor.role}</p>
                 </div>
               </div>
             </div>
 
-            {/* Right Sticky Card on Desktop */}
-            <div className="lg:col-span-1">
-              <div className="glass-card rounded-3xl p-6 border shadow-2xl bg-white dark:bg-slate-900 space-y-6 text-slate-900 dark:text-white sticky top-24">
-                {/* Course Thumbnail or Demo Preview */}
-                <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-800 group">
-                  <img
-                    src={course.thumbnail}
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    onClick={() =>
-                      setPreviewLesson({
-                        id: "demo",
-                        title: "Course Preview",
-                        description: course.description,
-                        videoUrl: course.demoVideoUrl,
-                        videoLengthMinutes: 10,
-                      })
-                    }
-                    className="absolute inset-0 bg-black/40 hover:bg-black/20 flex flex-col items-center justify-center gap-2 text-white font-bold transition group-hover:scale-105"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-brand-600/90 flex items-center justify-center shadow-lg shadow-brand-500/50">
-                      <PlayCircle className="w-6 h-6" />
-                    </div>
-                    <span className="text-xs">Preview This Masterclass</span>
-                  </button>
-                </div>
-
-                {/* Price Display */}
-                <div>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
-                      {formatPrice(course.price)}
-                    </span>
-                    {course.estimatedPrice > course.price && (
-                      <span className="text-base text-slate-400 line-through">
-                        {formatPrice(course.estimatedPrice)}
-                      </span>
-                    )}
-                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500">
-                      {Math.round(((course.estimatedPrice - course.price) / course.estimatedPrice) * 100)}% OFF
-                    </span>
+            {/* Right Card / Enrollment Box */}
+            <div className="bg-white text-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-6 self-start">
+              <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-100 group cursor-pointer" onClick={() => setPreviewLesson(course.sections[0]?.lessons[0])}>
+                <img
+                  src={course.thumbnail}
+                  alt={course.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/30 transition">
+                  <div className="w-12 h-12 rounded-full bg-white text-brand-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition">
+                    <PlayCircle className="w-7 h-7" />
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    ⚡ 30-Day Money-Back Guarantee
-                  </p>
+                </div>
+                <span className="absolute bottom-2 left-2 text-[10px] bg-black/75 text-white px-2 py-0.5 rounded font-semibold">
+                  Watch Preview
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl font-extrabold text-slate-900">
+                    {formatPrice(course.price)}
+                  </span>
+                  <span className="text-sm text-slate-400 line-through">
+                    {formatPrice(course.estimatedPrice)}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    {Math.round(((course.estimatedPrice - course.price) / course.estimatedPrice) * 100)}% OFF
+                  </span>
                 </div>
 
-                {/* Enrollment Action Button */}
                 {isEnrolled ? (
                   <div className="space-y-3">
                     <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-semibold flex items-center justify-between">
@@ -212,7 +203,7 @@ export default function CourseDetailsPage() {
                   </div>
                 ) : (
                   <button
-                    onClick={() => setIsCheckoutOpen(true)}
+                    onClick={handleEnrollClick}
                     className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 hover:from-brand-500 hover:to-accent-400 text-white font-bold text-xs shadow-xl shadow-brand-500/25 flex items-center justify-center gap-2 transition hover:scale-[1.02]"
                   >
                     <Sparkles className="w-4 h-4" />
@@ -221,7 +212,7 @@ export default function CourseDetailsPage() {
                 )}
 
                 {/* Features Checklist */}
-                <div className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
+                <div className="space-y-2.5 pt-4 border-t border-slate-100 text-xs text-slate-600">
                   <div className="flex items-center gap-2">
                     <PlayCircle className="w-4 h-4 text-brand-500 shrink-0" />
                     <span>{totalLessons} HD video lessons ({formatDuration(totalMinutes)})</span>
@@ -266,15 +257,13 @@ export default function CourseDetailsPage() {
 
             {/* Course Content / Curriculum */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-extrabold text-slate-900">
-                    Course Curriculum
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    {course.sections.length} sections • {totalLessons} lessons • {formatDuration(totalMinutes)} total length
-                  </p>
-                </div>
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">
+                  Course Curriculum
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {course.sections.length} sections • {totalLessons} lessons • {formatDuration(totalMinutes)} total length
+                </p>
               </div>
 
               <CurriculumAccordion
@@ -359,7 +348,7 @@ export default function CourseDetailsPage() {
                           className={`w-4 h-4 ${
                             star <= reviewRating
                               ? "fill-amber-400 text-amber-400"
-                              : "text-slate-300 dark:text-slate-600"
+                              : "text-slate-300"
                           }`}
                         />
                       </button>
@@ -372,7 +361,7 @@ export default function CourseDetailsPage() {
                     placeholder="Write your honest review and what you learned..."
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:outline-none"
                   />
 
                   <button
@@ -399,7 +388,7 @@ export default function CourseDetailsPage() {
                             alt={rev.user.name}
                             className="w-7 h-7 rounded-full object-cover"
                           />
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          <span className="text-xs font-bold text-slate-800">
                             {rev.user.name}
                           </span>
                         </div>
@@ -416,7 +405,7 @@ export default function CourseDetailsPage() {
                           ))}
                         </div>
                       </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed pl-9">
+                      <p className="text-xs text-slate-600 leading-relaxed pl-9">
                         {rev.comment}
                       </p>
                       <span className="text-[10px] text-slate-400 pl-9 block">
