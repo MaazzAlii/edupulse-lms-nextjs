@@ -52,7 +52,7 @@ export default function Navbar() {
                   : "text-muted hover:text-foreground hover:bg-black/5"
               }`}
             >
-              Home
+              Courses
             </Link>
             <Link
               href="/dashboard"
@@ -65,6 +65,19 @@ export default function Navbar() {
               <LayoutDashboard className="w-4 h-4" />
               Dashboard
             </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                  pathname.startsWith("/admin")
+                    ? "bg-gold-tint text-gold font-semibold"
+                    : "text-muted hover:text-foreground hover:bg-black/5"
+                }`}
+              >
+                <Shield className="w-4 h-4 text-gold" />
+                Admin Portal
+              </Link>
+            )}
           </nav>
         </div>
 
