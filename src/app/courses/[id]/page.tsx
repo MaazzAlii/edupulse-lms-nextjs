@@ -21,6 +21,10 @@ import {
   X,
   CreditCard,
   PlayCircle,
+  Star,
+  MessageSquare,
+  Send,
+  CornerDownRight,
 } from "lucide-react";
 
 interface CourseDetail {
@@ -38,6 +42,8 @@ interface CourseDetail {
   price: number;
   thumbnailUrl?: string;
   isPublished: boolean;
+  averageRating?: number;
+  numReviews?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +54,18 @@ interface LessonSummary {
   order: number;
   isPreview: boolean;
   durationSeconds: number;
+}
+
+interface ReviewItem {
+  _id: string;
+  user: {
+    _id: string;
+    name: string;
+  };
+  rating: number;
+  comment: string;
+  adminReply?: string;
+  createdAt: string;
 }
 
 export default function CourseDetailPage({
@@ -63,6 +81,7 @@ export default function CourseDetailPage({
 
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [lessons, setLessons] = useState<LessonSummary[]>([]);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,19 +93,31 @@ export default function CourseDetailPage({
     searchParams.get("checkout") === "cancelled"
   );
 
+  // Review submission state
+  const [ratingInput, setRatingInput] = useState<number>(5);
+  const [commentInput, setCommentInput] = useState<string>("");
+  const [reviewSubmitting, setReviewSubmitting] = useState<boolean>(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  // Admin reply inputs map (reviewId -> text)
+  const [adminReplyTexts, setAdminReplyTexts] = useState<Record<string, string>>({});
+  const [replySubmittingId, setReplySubmittingId] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadCourseAndLessons() {
       try {
         setLoading(true);
         setError(null);
 
-        const [courseRes, lessonsRes] = await Promise.all([
+        const [courseRes, lessonsRes, reviewsRes] = await Promise.all([
           fetch(`/api/courses/${courseId}`, { cache: "no-store" }),
           fetch(`/api/courses/${courseId}/lessons`, { cache: "no-store" }),
+          fetch(`/api/courses/${courseId}/reviews`, { cache: "no-store" }),
         ]);
 
         const courseData = await courseRes.json();
         const lessonsData = await lessonsRes.json();
+        const reviewsData = await reviewsRes.json();
 
         if (courseRes.status === 404 || !courseData.success || !courseData.course) {
           setError("Course not found or is currently unavailable.");
@@ -97,6 +128,17 @@ export default function CourseDetailPage({
 
         if (lessonsData.success && Array.isArray(lessonsData.lessons)) {
           setLessons(lessonsData.lessons);
+        }
+
+        if (reviewsData.success && Array.isArray(reviewsData.reviews)) {
+          setReviews(reviewsData.reviews);
+          const initialReplies: Record<string, string> = {};
+          reviewsData.reviews.forEach((r: ReviewItem) => {
+            if (r.adminReply) {
+              initialReplies[r._id] = r.adminReply;
+            }
+          });
+          setAdminReplyTexts(initialReplies);
         }
       } catch (err: any) {
         setError(err.message || "Failed to load course details.");
@@ -168,6 +210,67 @@ export default function CourseDetailPage({
     }
   };
 
+  // Submit Review Handler
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentInput.trim()) return;
+
+    try {
+      setReviewSubmitting(true);
+      setReviewError(null);
+
+      const res = await fetch(`/api/courses/${courseId}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating: ratingInput, comment: commentInput.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setReviewError(data.message || "Failed to submit review");
+        return;
+      }
+
+      setCommentInput("");
+      setReviews((prev) => [data.review, ...prev]);
+
+      // Refetch course info to get updated average rating
+      const courseRes = await fetch(`/api/courses/${courseId}`);
+      const courseData = await courseRes.json();
+      if (courseData.success && courseData.course) {
+        setCourse(courseData.course);
+      }
+    } catch (err: any) {
+      setReviewError(err.message || "Failed to submit review");
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  // Submit Admin Reply Handler
+  const handleAdminReplySubmit = async (reviewId: string) => {
+    const replyText = adminReplyTexts[reviewId] || "";
+    try {
+      setReplySubmittingId(reviewId);
+      const res = await fetch(`/api/reviews/${reviewId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminReply: replyText }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setReviews((prev) =>
+          prev.map((r) => (r._id === reviewId ? { ...r, adminReply: replyText } : r))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to submit admin reply:", err);
+    } finally {
+      setReplySubmittingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
@@ -206,6 +309,7 @@ export default function CourseDetailPage({
   }
 
   const firstLesson = lessons.length > 0 ? lessons[0] : null;
+  const userHasReviewed = reviews.some((r) => r.user?._id === user?._id);
 
   return (
     <div className="min-h-screen pb-20">
@@ -251,11 +355,12 @@ export default function CourseDetailPage({
             >
               {course.level}
             </span>
-            {!course.isPublished && (
-              <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-gold-tint text-gold border border-gold/30">
-                Draft (Admin Preview)
+            {course.numReviews && course.numReviews > 0 ? (
+              <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-gold-tint text-gold border border-gold/30 flex items-center gap-1">
+                <Star className="w-3.5 h-3.5 fill-gold" />
+                <span>{course.averageRating?.toFixed(1)} ({course.numReviews} reviews)</span>
               </span>
-            )}
+            ) : null}
           </div>
 
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-foreground tracking-tight leading-tight max-w-4xl">
@@ -385,6 +490,172 @@ export default function CourseDetailPage({
                           </div>
                         )}
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Reviews & Ratings Section */}
+            <div className="card-surface p-6 sm:p-8 space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-border">
+                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-gold" />
+                  <span>Student Reviews ({reviews.length})</span>
+                </h2>
+
+                {course.averageRating && course.averageRating > 0 ? (
+                  <div className="flex items-center gap-1 text-gold text-sm font-bold">
+                    <Star className="w-4 h-4 fill-gold" />
+                    <span>{course.averageRating.toFixed(1)} / 5.0</span>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Review Submission Form (Enrolled Students Only) */}
+              {isEnrolled && !userHasReviewed && (
+                <form onSubmit={handleReviewSubmit} className="p-5 bg-surface border border-border rounded-2xl space-y-4">
+                  <h3 className="text-sm font-bold text-foreground">Leave a Student Review</h3>
+
+                  {reviewError && (
+                    <div className="p-3 bg-red-tint/50 border border-red/30 rounded-xl text-red text-xs font-medium">
+                      {reviewError}
+                    </div>
+                  )}
+
+                  {/* Star selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted font-medium">Rating:</span>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setRatingInput(star)}
+                          className="p-1 hover:scale-110 transition"
+                        >
+                          <Star
+                            className={`w-5 h-5 ${
+                              star <= ratingInput ? "text-gold fill-gold" : "text-muted"
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Comment input */}
+                  <textarea
+                    rows={3}
+                    placeholder="Share your experience taking this course..."
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    required
+                    className="w-full p-3 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary transition"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={reviewSubmitting}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-sm transition"
+                  >
+                    {reviewSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Submit Review</span>
+                  </button>
+                </form>
+              )}
+
+              {!isEnrolled && (
+                <div className="p-4 bg-primary-tint/20 rounded-xl text-xs text-muted text-center border border-border">
+                  Enroll in this course to leave a review and share your feedback.
+                </div>
+              )}
+
+              {/* Reviews List */}
+              {reviews.length === 0 ? (
+                <p className="text-xs text-muted italic text-center py-6">
+                  No reviews submitted yet for this course. Be the first student to leave feedback!
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((rev) => (
+                    <div key={rev._id} className="p-4 bg-background border border-border rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs">
+                            {rev.user?.name ? rev.user.name.charAt(0).toUpperCase() : "U"}
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-foreground block">
+                              {rev.user?.name || "Student"}
+                            </span>
+                            <span className="text-[10px] text-muted">
+                              {new Date(rev.createdAt).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Rating Stars */}
+                        <div className="flex items-center gap-0.5 text-gold">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`w-3.5 h-3.5 ${
+                                s <= rev.rating ? "fill-gold text-gold" : "text-border"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-muted leading-relaxed whitespace-pre-line">
+                        {rev.comment}
+                      </p>
+
+                      {/* Admin Reply Display */}
+                      {rev.adminReply && (
+                        <div className="pl-4 border-l-2 border-primary/40 mt-2 space-y-1">
+                          <span className="text-[11px] font-bold text-primary flex items-center gap-1">
+                            <CornerDownRight className="w-3 h-3" />
+                            Instructor / Admin Reply:
+                          </span>
+                          <p className="text-xs text-muted italic">{rev.adminReply}</p>
+                        </div>
+                      )}
+
+                      {/* Admin Reply Form */}
+                      {user?.role === "admin" && (
+                        <div className="pt-2 border-t border-border flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Write official admin reply..."
+                            value={adminReplyTexts[rev._id] || ""}
+                            onChange={(e) =>
+                              setAdminReplyTexts((prev) => ({
+                                ...prev,
+                                [rev._id]: e.target.value,
+                              }))
+                            }
+                            className="flex-1 px-3 py-1.5 bg-surface border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+                          />
+                          <button
+                            onClick={() => handleAdminReplySubmit(rev._id)}
+                            disabled={replySubmittingId === rev._id}
+                            className="px-3 py-1.5 bg-primary text-white font-bold text-xs rounded-lg flex items-center gap-1 shadow-sm hover:bg-primary-dark"
+                          >
+                            {replySubmittingId === rev._id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              "Reply"
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

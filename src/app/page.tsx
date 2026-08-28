@@ -14,6 +14,7 @@ import {
   RotateCcw,
   SlidersHorizontal,
   Layers,
+  Star,
 } from "lucide-react";
 
 interface Category {
@@ -37,6 +38,8 @@ interface Course {
   price: number;
   thumbnailUrl?: string;
   isPublished: boolean;
+  averageRating?: number;
+  numReviews?: number;
   createdAt: string;
 }
 
@@ -390,9 +393,30 @@ function CatalogContent() {
                     {course.title}
                   </h3>
 
-                  <p className="text-xs text-muted line-clamp-2 leading-relaxed mb-4">
+                  <p className="text-xs text-muted line-clamp-2 leading-relaxed mb-3">
                     {course.description}
                   </p>
+
+                  {/* Rating display */}
+                  <div className="flex items-center gap-1.5 mb-4 text-xs font-semibold">
+                    {course.numReviews && course.numReviews > 0 ? (
+                      <>
+                        <div className="flex items-center gap-1 text-gold bg-gold-tint px-2 py-0.5 rounded-md border border-gold/30">
+                          <Star className="w-3.5 h-3.5 fill-gold" />
+                          <span className="font-bold text-foreground">
+                            {course.averageRating?.toFixed(1)}
+                          </span>
+                        </div>
+                        <span className="text-muted text-[11px]">
+                          ({course.numReviews} {course.numReviews === 1 ? "review" : "reviews"})
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-[11px] text-muted font-normal italic">
+                        No reviews yet
+                      </span>
+                    )}
+                  </div>
 
                   <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs text-muted font-medium">
