@@ -5,6 +5,8 @@ import Enrollment from "@/models/Enrollment";
 import User from "@/models/User";
 import Course from "@/models/Course";
 import Notification from "@/models/Notification";
+import { sendEmail } from "@/lib/email";
+import { orderConfirmationEmailTemplate } from "@/lib/emailTemplates";
 import Stripe from "stripe";
 
 // Force Node.js runtime for raw request body parsing & crypto verification
@@ -105,6 +107,21 @@ export async function POST(req: NextRequest) {
             link: "/admin",
           }))
         );
+      }
+
+      // Send Order Confirmation Email to Buyer (non-blocking)
+      if (buyerUser && courseDoc) {
+        sendEmail({
+          to: buyerUser.email,
+          subject: `Order Confirmation — ${courseDoc.title}`,
+          html: orderConfirmationEmailTemplate({
+            name: buyerUser.name,
+            courseTitle: courseDoc.title,
+            amount: amountTotal,
+            date: new Date().toLocaleDateString(),
+            courseId: courseDoc._id.toString(),
+          }),
+        }).catch((err) => console.error("Order confirmation email error:", err));
       }
 
       console.log(
