@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T16:50:55+05:00
-- Current part in progress: Part 7 — Reviews & Ratings Complete
-- Last part fully completed and verified: Part 7 — Reviews & Ratings
+- Last updated: 2026-08-28T16:53:35+05:00
+- Current part in progress: Part 8 — Q&A / Discussions Complete
+- Last part fully completed and verified: Part 8 — Q&A / Discussions
 
 ## Part-by-Part Log
 
@@ -43,6 +43,15 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `c526696`: feat(course-detail): reviews section and submission form
 - Notes/deviations from spec: Synchronous rating recalculation helper on Course document.
 
+### Part 8 — Q&A / Discussions
+- Status: complete
+- Commits:
+  - `c549b70`: feat(schema): Question model
+  - `4d5bea1`: feat(api): lesson question and reply routes
+  - `f96f7ab`: feat(learn): Q&A panel under lesson player
+  - `898f448`: feat(admin): cross-course questions queue
+- Notes/deviations from spec: Cross-course admin Q&A queue with threaded replies and relative timestamping ("2d ago").
+
 ### Part 10 — Admin User Management
 - Status: complete
 - Commits:
@@ -63,4 +72,4 @@ Update it after every meaningful sub-step — not just at the end of a part.
 - `STRIPE_WEBHOOK_SECRET` (For local webhook signature verification with `stripe listen` or Vercel production webhook)
 
 ## Open Questions / Flags for the User
-- Next part in sequence: Part 8 (Q&A / Discussions).
+- Next part in sequence: Part 9 (Notifications).
