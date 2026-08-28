@@ -11,6 +11,8 @@ export interface ICourse extends Document {
   price: number;
   thumbnailUrl: string;
   isPublished: boolean;
+  averageRating: number;
+  numReviews: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,6 +63,17 @@ const courseSchema = new Schema<ICourse>(
     isPublished: {
       type: Boolean,
       default: false,
+    },
+    averageRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    numReviews: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
   },
   {
