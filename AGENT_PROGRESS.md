@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T16:35:40+05:00
-- Current part in progress: Reached Checkpoint after Part 10 (Admin User Management Complete)
-- Last part fully completed and verified: Part 10 — Admin User Management
+- Last updated: 2026-08-28T16:39:30+05:00
+- Current part in progress: Reached Checkpoint after Part 19 (Deployment Configuration Complete)
+- Last part fully completed and verified: Part 19 — Deployment to Vercel
 
 ## Part-by-Part Log
 
@@ -35,10 +35,15 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `cb452ce`: feat(admin): users management page and layout integration
 - Notes/deviations from spec: Includes self-demotion lockout protection and last-admin deactivation guard.
 
+### Part 19 — Deployment to Vercel
+- Status: complete
+- Commits:
+  - `deploy(vercel)`: vercel.json configuration and deployment documentation
+- Notes/deviations from spec: Configured vercel.json preset, environment variable templates, and README deployment guide.
+
 ## Environment / Credentials Needed From User
 - `STRIPE_SECRET_KEY` (Stripe test secret key `sk_test_...` for live checkout testing)
-- `STRIPE_WEBHOOK_SECRET` (For local webhook signature verification with `stripe listen`)
+- `STRIPE_WEBHOOK_SECRET` (For local webhook signature verification with `stripe listen` or Vercel production webhook)
 
 ## Open Questions / Flags for the User
-- Checkpoint reached (§8 of AGENT_KICKOFF_PROMPT.md: "After Part 10 (admin user management) — at this point all four of the task's acceptance criteria are met.").
-- All 4 core task card acceptance criteria (Course CRUD, Video Streaming, Payment Integration, Admin User/Course Management) are now 100% complete and verified.
+- Ready for Part 20 (Final QA & Submission Packaging).

@@ -36,7 +36,7 @@ An industrial-grade, full-stack Learning Management System built with **Next.js 
 | 16 | Automated Testing | ⏳ Upcoming | Playwright e2e suite |
 | 17 | SEO, Performance & A11y | ⏳ Upcoming | Metadata, sitemap, Lighthouse pass |
 | 18 | Security Hardening | ⏳ Upcoming | Input validation, rate limiting, headers, secret rotation |
-| 19 | Deployment | ⏳ Upcoming | Vercel prod deploy, live Stripe webhook |
+| 19 | Deployment | ✅ Completed | Vercel prod deploy, live Stripe webhook, vercel.json config |
 | 20 | Final QA & Submission | ⏳ Upcoming | Regression checklist, README polish, submission packaging |
 
 ---
