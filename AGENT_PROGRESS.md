@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T16:57:40+05:00
-- Current part in progress: Part 9 — Notifications Complete
-- Last part fully completed and verified: Part 9 — Notifications
+- Last updated: 2026-08-28T17:03:00+05:00
+- Current part in progress: Part 11 — Admin Analytics Complete
+- Last part fully completed and verified: Part 11 — Admin Analytics
 
 ## Part-by-Part Log
 
@@ -70,6 +70,14 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `cb452ce`: feat(admin): users management page and layout integration
 - Notes/deviations from spec: Includes self-demotion lockout protection and last-admin deactivation guard.
 
+### Part 11 — Admin Analytics
+- Status: complete
+- Commits:
+  - `72dea72`: feat(analytics): shared last-12-months aggregation helper
+  - `fd06b18`: feat(api): admin analytics route
+  - `c6a1945`: feat(admin): analytics dashboard with charts
+- Notes/deviations from spec: Uses recharts with primary plum/gold color tokens and zero-activity month filling.
+
 ### Part 19 — Deployment to Vercel
 - Status: complete
 - Commits:
@@ -81,4 +89,4 @@ Update it after every meaningful sub-step — not just at the end of a part.
 - `STRIPE_WEBHOOK_SECRET` (For local webhook signature verification with `stripe listen` or Vercel production webhook)
 
 ## Open Questions / Flags for the User
-- Next part in sequence: Part 11 (Admin Analytics).
+- Next part in sequence: Part 12 (Search, Filters & Wishlist).
