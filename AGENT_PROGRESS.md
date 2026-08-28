@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T17:11:25+05:00
-- Current part in progress: Part 14 — Transactional Email Complete
-- Last part fully completed and verified: Part 14 — Transactional Email
+- Last updated: 2026-08-28T17:16:00+05:00
+- Current part in progress: Part 15 — Password Reset & Account Security Complete
+- Last part fully completed and verified: Part 15 — Password Reset & Account Security
 
 ## Part-by-Part Log
 
@@ -100,6 +100,14 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `eef0a16`: feat(webhooks): order confirmation email on paid enrollment
 - Notes/deviations from spec: Non-blocking Resend client dispatcher with inline HTML templates for welcome and order receipt.
 
+### Part 15 — Password Reset & Account Security
+- Status: complete
+- Commits:
+  - `73c2817`: feat(schema): reset token fields on User
+  - `193007a`: feat(api): forgot-password and reset-password routes
+  - `3262429`: feat(auth): forgot/reset password pages
+- Notes/deviations from spec: SHA-256 token hashing with 15-minute expiry, account enumeration protection, and auto-login after reset.
+
 ### Part 19 — Deployment to Vercel
 - Status: complete
 - Commits:
@@ -112,4 +120,4 @@ Update it after every meaningful sub-step — not just at the end of a part.
 - `RESEND_API_KEY` (Resend API key `re_...` for transactional email dispatching)
 
 ## Open Questions / Flags for the User
-- Next part in sequence: Part 15 (Password Reset & Account Security).
+- Next part in sequence: Part 16 (Automated Testing).

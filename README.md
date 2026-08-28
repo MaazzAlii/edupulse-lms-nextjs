@@ -32,7 +32,7 @@ An industrial-grade, full-stack Learning Management System built with **Next.js 
 | 12 | Search, Filters & Wishlist | ✅ Completed | Sort/paginate catalog, wishlist |
 | 13 | Student Dashboard | ✅ Completed | My Learning overview, purchase history, certificates list |
 | 14 | Transactional Email | ✅ Completed | Order confirmation, welcome email |
-| 15 | Password Reset & Security | ⏳ Upcoming | Forgot/reset password flow |
+| 15 | Password Reset & Security | ✅ Completed | Forgot/reset password flow |
 | 16 | Automated Testing | ⏳ Upcoming | Playwright e2e suite |
 | 17 | SEO, Performance & A11y | ⏳ Upcoming | Metadata, sitemap, Lighthouse pass |
 | 18 | Security Hardening | ⏳ Upcoming | Input validation, rate limiting, headers, secret rotation |
