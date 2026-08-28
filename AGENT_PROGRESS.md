@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T17:19:40+05:00
-- Current part in progress: Part 16 — Automated Testing (Playwright) Complete
-- Last part fully completed and verified: Part 16 — Automated Testing (Playwright)
+- Last updated: 2026-08-28T17:22:15+05:00
+- Current part in progress: Part 17 — SEO, Performance & Accessibility Complete
+- Last part fully completed and verified: Part 17 — SEO, Performance & Accessibility
 
 ## Part-by-Part Log
 
@@ -117,6 +117,12 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `ebe3d65`: test: enrollment guard integration test
 - Notes/deviations from spec: Created Playwright e2e test suite under `tests/e2e/` for auth, search catalog, admin portal, and enrollment guard.
 
+### Part 17 — SEO, Performance & Accessibility
+- Status: complete
+- Commits:
+  - `37b8747`: feat(seo): dynamic metadata, sitemap, and robots.txt
+- Notes/deviations from spec: Dynamic sitemap.xml, robots.txt, and course OpenGraph metadata layout.
+
 ### Part 19 — Deployment to Vercel
 - Status: complete
 - Commits:
@@ -129,4 +135,4 @@ Update it after every meaningful sub-step — not just at the end of a part.
 - `RESEND_API_KEY` (Resend API key `re_...` for transactional email dispatching)
 
 ## Open Questions / Flags for the User
-- Next part in sequence: Part 17 (SEO, Performance & A11y).
+- Next part in sequence: Part 18 (Security Hardening).
