@@ -20,10 +20,10 @@ An industrial-grade, full-stack Learning Management System built with **Next.js 
 | :--- | :--- | :---: | :--- |
 | **Part 1** | **Foundation & Auth Engine** | ✅ **Completed** | Next.js 15 Setup, 5 Mongoose Schemas, HTTP-Only JWT Auth, Protected Dashboard |
 | **Part 2** | **Course Catalog & Admin CRUD** | ✅ **Completed** | Public Catalog, Filter/Search, Course Detail, Categories & Course Admin Studio |
-| **Part 3** | Video Streaming & Classroom | ⏳ *Up Next* | Vercel Blob Video Upload, Interactive Classroom & Lesson Tracking |
-| **Part 4** | Payments & Enrollments | ⏳ *Upcoming* | Stripe Webhooks, Checkout Sessions, Enrollment Guard & Invoices |
-| **Part 5** | Analytics & Administration | ⏳ *Upcoming* | Revenue Charts, Enrollment Analytics, User Role Access Controls |
-| **Part 6** | Deployment & Polish | ⏳ *Upcoming* | Production Deployment, Security Audits & Optimizations |
+| **Part 3** | **Lessons & Video Streaming** | ✅ **Completed** | Vercel Blob Video Upload, Admin Curriculum Studio, Gated Player & HTTP Streaming |
+| **Part 4** | **Payments & Enrollments** | ⏳ *Upcoming* | Stripe Webhooks, Checkout Sessions, Enrollment Guard & Invoices |
+| **Part 5** | **Analytics & Administration** | ⏳ *Upcoming* | Revenue Charts, Enrollment Analytics, User Role Access Controls |
+| **Part 6** | **Deployment & Polish** | ⏳ *Upcoming* | Production Deployment, Security Audits & Optimizations |
 
 ---
 
@@ -67,6 +67,32 @@ In **Part 2**, we built the course taxonomy, public catalog, detail views, and d
 
 ---
 
+## 🎥 Part 3: Lessons & Video Streaming
+
+In **Part 3**, we built complete lesson CRUD, Vercel Blob video integration, curriculum rendering, and gated video player access:
+
+- **Vercel Blob Video Upload (`src/lib/videoUpload.ts`):**
+  - Robust file validation rejecting unsupported formats (supports `video/mp4`, `video/webm`, `video/quicktime`) and oversized files (>200MB).
+  - Clear error messaging with custom `VideoUploadError` and configuration validation (`BLOB_READ_WRITE_TOKEN`).
+  - Seamless HTTP Range request streaming supported natively by Vercel Blob URLs for instant seeking and scrubbable playback.
+- **RESTful Lesson API Routes:**
+  - `GET /api/courses/[id]/lessons`: Public course curriculum list sorted by order. **Gated streaming security**: omits/strips `videoUrl` for non-preview lessons unless requested by an admin.
+  - `POST /api/courses/[id]/lessons`: Admin-only multipart form handler uploading video to Vercel Blob and persisting the `Lesson` document.
+  - `GET /api/lessons/[id]`: Retrieve single lesson details with preview gating.
+  - `PUT /api/lessons/[id]`: Admin-only metadata updates (`title`, `order`, `isPreview`).
+  - `PUT /api/lessons/[id]/video`: Admin-only dedicated video replacement endpoint.
+  - `DELETE /api/lessons/[id]`: Admin-only lesson document deletion.
+- **Admin Curriculum & Video Studio (`src/app/admin/courses/[id]/lessons/page.tsx`):**
+  - Course header with total lesson counter and direct links.
+  - Multi-part video uploader with upload in-flight indicators and file validation.
+  - Interactive lesson list with order renumbering, inline `<video controls>` previews, metadata edit modal, video replacement modal, and deletion confirmation guard.
+  - Added "Manage Lessons" navigation button to the course repository table in `/admin/courses`.
+- **Public Curriculum & Gated Player:**
+  - **Course Detail Page (`src/app/courses/[id]/page.tsx`):** Replaced placeholder with live curriculum view displaying lesson order, titles, preview badges, and direct player links for preview lessons.
+  - **Interactive Learning Player (`src/app/learn/[courseId]/[lessonId]/page.tsx`):** Responsive classroom interface with HTML5 video player for free preview lessons / admins, and locked status placeholder ("This lesson unlocks after enrollment") for gated lessons. Includes course curriculum sidebar and prev/next lesson navigation.
+
+---
+
 ## 📸 Verification Screenshots
 
 ### Part 1: Authentication & Foundation
@@ -103,6 +129,7 @@ Create a `.env.local` file in the root directory:
 MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/edupulse_lms?retryWrites=true&w=majority
 JWT_SECRET=your_jwt_secret_key_here
 JWT_EXPIRE=7d
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_read_write_token_here
 ```
 
 ### 3. Install dependencies
