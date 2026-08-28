@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T17:03:00+05:00
-- Current part in progress: Part 11 — Admin Analytics Complete
-- Last part fully completed and verified: Part 11 — Admin Analytics
+- Last updated: 2026-08-28T17:06:50+05:00
+- Current part in progress: Part 12 — Search, Filters & Wishlist Complete
+- Last part fully completed and verified: Part 12 — Search, Filters & Wishlist
 
 ## Part-by-Part Log
 
@@ -78,6 +78,14 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `c6a1945`: feat(admin): analytics dashboard with charts
 - Notes/deviations from spec: Uses recharts with primary plum/gold color tokens and zero-activity month filling.
 
+### Part 12 — Search, Filters & Wishlist
+- Status: complete
+- Commits:
+  - `ec19df3`: feat(api): sort and pagination on courses catalog
+  - `16ec130`: feat(schema): Wishlist model
+  - `97d4929`: feat(wishlist): save and remove courses with wishlist page and navbar link
+- Notes/deviations from spec: Wishlist model with unique compound index `{ user: 1, course: 1 }` and dedicated student wishlist studio.
+
 ### Part 19 — Deployment to Vercel
 - Status: complete
 - Commits:
@@ -89,4 +97,4 @@ Update it after every meaningful sub-step — not just at the end of a part.
 - `STRIPE_WEBHOOK_SECRET` (For local webhook signature verification with `stripe listen` or Vercel production webhook)
 
 ## Open Questions / Flags for the User
-- Next part in sequence: Part 12 (Search, Filters & Wishlist).
+- Next part in sequence: Part 13 (Student Dashboard).
