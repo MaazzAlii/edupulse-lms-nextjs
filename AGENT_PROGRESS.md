@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T17:16:00+05:00
-- Current part in progress: Part 15 — Password Reset & Account Security Complete
-- Last part fully completed and verified: Part 15 — Password Reset & Account Security
+- Last updated: 2026-08-28T17:19:40+05:00
+- Current part in progress: Part 16 — Automated Testing (Playwright) Complete
+- Last part fully completed and verified: Part 16 — Automated Testing (Playwright)
 
 ## Part-by-Part Log
 
@@ -108,6 +108,15 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `3262429`: feat(auth): forgot/reset password pages
 - Notes/deviations from spec: SHA-256 token hashing with 15-minute expiry, account enumeration protection, and auto-login after reset.
 
+### Part 16 — Automated Testing (Playwright)
+- Status: complete
+- Commits:
+  - `6911008`: test: playwright config and test database setup
+  - `8929fe5`: test: auth flow e2e suite
+  - `ece0a49`: test: catalog, checkout redirect, and admin crud suites
+  - `ebe3d65`: test: enrollment guard integration test
+- Notes/deviations from spec: Created Playwright e2e test suite under `tests/e2e/` for auth, search catalog, admin portal, and enrollment guard.
+
 ### Part 19 — Deployment to Vercel
 - Status: complete
 - Commits:
@@ -120,4 +129,4 @@ Update it after every meaningful sub-step — not just at the end of a part.
 - `RESEND_API_KEY` (Resend API key `re_...` for transactional email dispatching)
 
 ## Open Questions / Flags for the User
-- Next part in sequence: Part 16 (Automated Testing).
+- Next part in sequence: Part 17 (SEO, Performance & A11y).
