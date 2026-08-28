@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -17,7 +18,10 @@ import {
   CheckCircle2,
   ShieldAlert,
   CreditCard,
+  Award,
+  Check,
 } from "lucide-react";
+import { computeProgress } from "@/lib/progress";
 
 interface CourseInfo {
   _id: string;
@@ -44,12 +48,18 @@ export default function LessonPlayerPage({
 }) {
   const resolvedParams = use(params);
   const { courseId, lessonId } = resolvedParams;
+  const { isAuthenticated } = useAuth();
 
   const [course, setCourse] = useState<CourseInfo | null>(null);
   const [lessons, setLessons] = useState<LessonItem[]>([]);
   const [currentLesson, setCurrentLesson] = useState<LessonItem | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Progress & Enrollment state
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
+  const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
+  const [progressLoading, setProgressLoading] = useState<boolean>(false);
 
   useEffect(() => {
     async function fetchCourseAndLessons() {
@@ -96,6 +106,59 @@ export default function LessonPlayerPage({
     }
   }, [courseId, lessonId]);
 
+  // Fetch student enrollment & progress data
+  useEffect(() => {
+    async function checkEnrollmentAndProgress() {
+      if (!isAuthenticated || !courseId) return;
+      try {
+        const res = await fetch(`/api/enrollments/me?courseId=${courseId}`, { cache: "no-store" });
+        const data = await res.json();
+        if (data.success && data.paymentStatus === "Paid") {
+          setIsEnrolled(true);
+          if (data.enrollment && Array.isArray(data.enrollment.completedLessons)) {
+            setCompletedLessonIds(data.enrollment.completedLessons.map((id: any) => id.toString()));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to check enrollment progress:", e);
+      }
+    }
+
+    checkEnrollmentAndProgress();
+  }, [isAuthenticated, courseId]);
+
+  // Toggle lesson completion state
+  const handleToggleComplete = async () => {
+    if (!currentLesson || !isEnrolled) return;
+    const isCompleted = completedLessonIds.includes(currentLesson._id);
+
+    try {
+      setProgressLoading(true);
+      const res = await fetch(`/api/courses/${courseId}/progress`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lessonId: currentLesson._id,
+          completed: !isCompleted,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        if (!isCompleted) {
+          setCompletedLessonIds((prev) => [...prev, currentLesson._id]);
+        } else {
+          setCompletedLessonIds((prev) => prev.filter((id) => id !== currentLesson._id));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to toggle completion:", e);
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
@@ -140,6 +203,10 @@ export default function LessonPlayerPage({
 
   // Gating rule: lesson has a non-empty videoUrl returned by backend guard
   const isPlayable = Boolean(currentLesson.videoUrl && currentLesson.videoUrl.trim().length > 0);
+
+  // Compute overall progress
+  const progressPercent = computeProgress(completedLessonIds.length, lessons.length);
+  const isCurrentCompleted = completedLessonIds.includes(currentLesson._id);
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -214,6 +281,33 @@ export default function LessonPlayerPage({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content: Video Screen or Locked Placeholder */}
           <div className="lg:col-span-2 space-y-6">
+            {/* 100% Completion Banner */}
+            {isEnrolled && progressPercent === 100 && (
+              <div className="p-4 bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-indigo-500/10 border border-gold/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gold text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-md">
+                    <Award className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-foreground">
+                      Course Complete! 🎉
+                    </h3>
+                    <p className="text-xs text-muted">
+                      Congratulations! You have completed 100% of this course curriculum.
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  href={`/certificate/${courseId}`}
+                  className="px-4 py-2 bg-gold hover:bg-gold-dark text-slate-950 font-bold text-xs rounded-xl shadow-md transition shrink-0 flex items-center gap-1.5"
+                >
+                  <Award className="w-4 h-4" />
+                  <span>View Certificate</span>
+                </Link>
+              </div>
+            )}
+
             <div className="card-surface overflow-hidden p-2 sm:p-3 shadow-lg">
               {isPlayable ? (
                 <div className="rounded-xl overflow-hidden bg-black shadow-2xl relative aspect-video flex items-center justify-center">
@@ -253,22 +347,47 @@ export default function LessonPlayerPage({
               )}
             </div>
 
-            {/* Lesson Details Card */}
-            <div className="card-surface p-6 sm:p-7 space-y-3">
-              <div className="flex items-center gap-2.5">
-                <span className="px-2.5 py-0.5 rounded-lg bg-primary-tint text-primary text-xs font-bold">
-                  Lesson #{currentLesson.order}
-                </span>
-                {currentLesson.isPreview ? (
-                  <span className="px-2.5 py-0.5 rounded-lg bg-green-tint text-green text-xs font-bold border border-green/30">
-                    Free Preview
+            {/* Lesson Details Card & Mark Complete Action */}
+            <div className="card-surface p-6 sm:p-7 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-2.5 py-0.5 rounded-lg bg-primary-tint text-primary text-xs font-bold">
+                    Lesson #{currentLesson.order}
                   </span>
-                ) : (
-                  <span className="px-2.5 py-0.5 rounded-lg bg-border text-muted text-xs font-semibold">
-                    Full Course Access
-                  </span>
+                  {currentLesson.isPreview ? (
+                    <span className="px-2.5 py-0.5 rounded-lg bg-green-tint text-green text-xs font-bold border border-green/30">
+                      Free Preview
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-lg bg-border text-muted text-xs font-semibold">
+                      Full Course Access
+                    </span>
+                  )}
+                </div>
+
+                {/* Mark as Complete Toggle */}
+                {isEnrolled && (
+                  <button
+                    onClick={handleToggleComplete}
+                    disabled={progressLoading}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                      isCurrentCompleted
+                        ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25"
+                        : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20"
+                    }`}
+                  >
+                    {progressLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : isCurrentCompleted ? (
+                      <Check className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )}
+                    <span>{isCurrentCompleted ? "Completed ✓" : "Mark as Complete"}</span>
+                  </button>
                 )}
               </div>
+
               <h2 className="text-xl sm:text-2xl font-bold text-foreground">
                 {currentLesson.title}
               </h2>
@@ -285,22 +404,41 @@ export default function LessonPlayerPage({
             </div>
           </div>
 
-          {/* Right Sidebar: Curriculum Navigation */}
+          {/* Right Sidebar: Curriculum Navigation & Progress Bar */}
           <div className="lg:col-span-1">
             <div className="card-surface p-5 sm:p-6 space-y-4 sticky top-20">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-primary" />
-                  Course Content
-                </h3>
-                <span className="text-xs text-muted font-medium">
-                  {lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}
-                </span>
+              {/* Sidebar Header & Progress Bar */}
+              <div className="space-y-3 pb-3 border-b border-border">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-primary" />
+                    Course Content
+                  </h3>
+                  <span className="text-xs text-muted font-medium">
+                    {lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}
+                  </span>
+                </div>
+
+                {isEnrolled && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-muted">Your Progress</span>
+                      <span className="text-primary">{completedLessonIds.length} of {lessons.length} ({progressPercent}%)</span>
+                    </div>
+                    <div className="w-full bg-border h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-indigo-500 h-full transition-all duration-300 rounded-full"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-2 max-h-[calc(100vh-16rem)] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[calc(100vh-18rem)] overflow-y-auto pr-1">
                 {lessons.map((lesson) => {
                   const isActive = lesson._id === currentLesson._id;
+                  const isLessonDone = completedLessonIds.includes(lesson._id);
 
                   return (
                     <Link
@@ -317,15 +455,20 @@ export default function LessonPlayerPage({
                           className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 ${
                             isActive
                               ? "bg-white/20 text-white"
+                              : isLessonDone
+                              ? "bg-emerald-500/20 text-emerald-400"
                               : "bg-primary-tint text-primary"
                           }`}
                         >
-                          {lesson.order}
+                          {isLessonDone ? <Check className="w-3 h-3" /> : lesson.order}
                         </span>
                         <span className="truncate">{lesson.title}</span>
                       </div>
 
-                      <div className="shrink-0 flex items-center">
+                      <div className="shrink-0 flex items-center gap-1">
+                        {isLessonDone && !isActive && (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        )}
                         {lesson.isPreview ? (
                           <span
                             className={`p-1 rounded-md text-[10px] ${
