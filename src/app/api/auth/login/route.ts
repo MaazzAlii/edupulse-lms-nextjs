@@ -4,19 +4,30 @@ import User from "@/models/User";
 import { signToken } from "@/lib/jwt";
 import { apiError, apiSuccess } from "@/lib/response";
 import { AUTH_COOKIE } from "@/lib/auth";
+import { loginSchema } from "@/lib/validation";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
   try {
-    await connectDB();
-
-    const body = await req.json();
-    const { email, password } = body;
-
-    if (!email || !password) {
-      return apiError("Please provide email and password", 400);
+    // 1. Rate limiting check (10 attempts per 15 min)
+    const rateLimit = checkRateLimit(req, 10, 15 * 60 * 1000);
+    if (!rateLimit.isAllowed) {
+      return apiError("Too many login attempts. Please try again in 15 minutes.", 429);
     }
 
+    await connectDB();
+
+    const body = await req.json().catch(() => ({}));
+    
+    // 2. Zod input validation
+    const parsed = loginSchema.safeParse(body);
+    if (!parsed.success) {
+      return apiError(parsed.error.issues[0].message, 400);
+    }
+
+    const { email, password } = parsed.data;
     const normalizedEmail = email.toLowerCase().trim();
+
     // Select password explicitly since it has select: false on schema
     const user = await User.findOne({ email: normalizedEmail }).select("+password");
 
