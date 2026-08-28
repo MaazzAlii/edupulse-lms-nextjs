@@ -27,7 +27,7 @@ An industrial-grade, full-stack Learning Management System built with **Next.js 
 | 7 | Reviews & Ratings | ⏳ Upcoming | Star ratings, average rating, admin reply |
 | 8 | Q&A / Discussions | ⏳ Upcoming | Per-lesson questions, threaded replies |
 | 9 | Notifications | ⏳ Upcoming | In-app notification center, cron cleanup |
-| 10 | Admin User Management | ⏳ Upcoming | Search/paginate users, role promote/demote, suspend |
+| 10 | Admin User Management | ✅ Completed | Search/paginate users, role promote/demote, suspend |
 | 11 | Admin Analytics | ⏳ Upcoming | Revenue/enrollment/signup charts, top courses |
 | 12 | Search, Filters & Wishlist | ⏳ Upcoming | Sort/paginate catalog, wishlist |
 | 13 | Student Dashboard | ⏳ Upcoming | My Learning overview, purchase history, certificates list |
