@@ -11,7 +11,10 @@ import {
   Layers,
   Sparkles,
   Lock,
+  Play,
   AlertCircle,
+  Video,
+  CheckCircle2,
 } from "lucide-react";
 
 interface CourseDetail {
@@ -33,6 +36,14 @@ interface CourseDetail {
   updatedAt: string;
 }
 
+interface LessonSummary {
+  _id: string;
+  title: string;
+  order: number;
+  isPreview: boolean;
+  durationSeconds: number;
+}
+
 export default function CourseDetailPage({
   params,
 }: {
@@ -42,24 +53,33 @@ export default function CourseDetailPage({
   const courseId = resolvedParams.id;
 
   const [course, setCourse] = useState<CourseDetail | null>(null);
+  const [lessons, setLessons] = useState<LessonSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadCourse() {
+    async function loadCourseAndLessons() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`/api/courses/${courseId}`, {
-          cache: "no-store",
-        });
-        const data = await res.json();
 
-        if (res.status === 404 || !data.success || !data.course) {
+        const [courseRes, lessonsRes] = await Promise.all([
+          fetch(`/api/courses/${courseId}`, { cache: "no-store" }),
+          fetch(`/api/courses/${courseId}/lessons`, { cache: "no-store" }),
+        ]);
+
+        const courseData = await courseRes.json();
+        const lessonsData = await lessonsRes.json();
+
+        if (courseRes.status === 404 || !courseData.success || !courseData.course) {
           setError("Course not found or is currently unavailable.");
           setCourse(null);
         } else {
-          setCourse(data.course);
+          setCourse(courseData.course);
+        }
+
+        if (lessonsData.success && Array.isArray(lessonsData.lessons)) {
+          setLessons(lessonsData.lessons);
         }
       } catch (err: any) {
         setError(err.message || "Failed to load course details.");
@@ -69,7 +89,7 @@ export default function CourseDetailPage({
     }
 
     if (courseId) {
-      loadCourse();
+      loadCourseAndLessons();
     }
   }, [courseId]);
 
@@ -195,28 +215,81 @@ export default function CourseDetailPage({
               </p>
             </div>
 
-            {/* Curriculum Placeholder (Part 3 Scope) */}
-            <div className="card-surface p-6 sm:p-8 border-dashed">
-              <div className="flex items-center justify-between mb-4">
+            {/* Real Curriculum View (Part 3) */}
+            <div className="card-surface p-6 sm:p-8">
+              <div className="flex items-center justify-between pb-4 mb-6 border-b border-border">
                 <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
                   <Layers className="w-5 h-5 text-primary" />
                   Course Curriculum
                 </h2>
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-primary-tint text-primary">
-                  Part 3 Preview
+                  {lessons.length} {lessons.length === 1 ? "Lesson" : "Lessons"}
                 </span>
               </div>
 
-              <div className="p-6 bg-primary-tint/30 rounded-xl border border-primary/10 text-center">
-                <Sparkles className="w-8 h-8 text-gold mx-auto mb-2" />
-                <h3 className="text-sm font-bold text-foreground mb-1">
-                  Lessons coming in Part 3
-                </h3>
-                <p className="text-xs text-muted max-w-md mx-auto">
-                  Interactive lesson modules, video streaming, attachments, and
-                  completion tracking will be integrated in Part 3.
-                </p>
-              </div>
+              {lessons.length === 0 ? (
+                <div className="p-8 bg-primary-tint/20 rounded-xl border border-border text-center">
+                  <Video className="w-8 h-8 text-muted mx-auto mb-2 opacity-50" />
+                  <h3 className="text-sm font-bold text-foreground mb-1">
+                    Curriculum In Progress
+                  </h3>
+                  <p className="text-xs text-muted max-w-md mx-auto">
+                    The lessons for this course are currently being published by the instructor.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {lessons.map((lesson) => (
+                    <div
+                      key={lesson._id}
+                      className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                        lesson.isPreview
+                          ? "bg-surface hover:bg-primary-tint/30 border-border hover:border-primary/40 cursor-pointer"
+                          : "bg-surface/50 border-border/60 opacity-80"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0 pr-4">
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                            lesson.isPreview
+                              ? "bg-primary text-white shadow-sm"
+                              : "bg-border text-muted"
+                          }`}
+                        >
+                          #{lesson.order}
+                        </div>
+                        <span
+                          className={`text-sm font-semibold truncate ${
+                            lesson.isPreview ? "text-foreground" : "text-muted"
+                          }`}
+                        >
+                          {lesson.title}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {lesson.isPreview ? (
+                          <Link
+                            href={`/learn/${course._id}/${lesson._id}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-green-tint text-green hover:bg-green/20 border border-green/30 transition-colors shadow-sm"
+                          >
+                            <Play className="w-3 h-3 fill-current" />
+                            <span>Preview</span>
+                          </Link>
+                        ) : (
+                          <div
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-muted select-none"
+                            title="Enroll to unlock (Part 4)"
+                          >
+                            <Lock className="w-3 h-3" />
+                            <span>Locked</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -274,6 +347,12 @@ export default function CourseDetailPage({
 
               {/* Course Highlights */}
               <div className="pt-4 border-t border-border space-y-3 text-xs text-muted">
+                <div className="flex justify-between">
+                  <span>Curriculum:</span>
+                  <span className="font-semibold text-foreground">
+                    {lessons.length} {lessons.length === 1 ? "Lesson" : "Lessons"}
+                  </span>
+                </div>
                 <div className="flex justify-between">
                   <span>Level:</span>
                   <span className="font-semibold text-foreground">
