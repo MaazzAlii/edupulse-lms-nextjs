@@ -9,6 +9,7 @@ export interface IEnrollment extends Document {
   stripeSessionId?: string;
   stripePaymentIntentId?: string;
   completedLessons: mongoose.Types.ObjectId[];
+  completedAt?: Date | null;
   enrolledAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +50,10 @@ const enrollmentSchema = new Schema<IEnrollment>(
         ref: "Lesson",
       },
     ],
+    completedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: { createdAt: "enrolledAt", updatedAt: true },
