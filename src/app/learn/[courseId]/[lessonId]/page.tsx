@@ -20,6 +20,10 @@ import {
   CreditCard,
   Award,
   Check,
+  MessageSquare,
+  Send,
+  Trash2,
+  CornerDownRight,
 } from "lucide-react";
 import { computeProgress } from "@/lib/progress";
 
@@ -41,6 +45,41 @@ interface LessonItem {
   isPreview: boolean;
 }
 
+interface QuestionReply {
+  _id?: string;
+  user: {
+    _id: string;
+    name: string;
+  };
+  text: string;
+  createdAt: string;
+}
+
+interface QuestionItem {
+  _id: string;
+  user: {
+    _id: string;
+    name: string;
+  };
+  question: string;
+  replies: QuestionReply[];
+  createdAt: string;
+}
+
+function getRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return date.toLocaleDateString();
+}
+
 export default function LessonPlayerPage({
   params,
 }: {
@@ -48,7 +87,7 @@ export default function LessonPlayerPage({
 }) {
   const resolvedParams = use(params);
   const { courseId, lessonId } = resolvedParams;
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const [course, setCourse] = useState<CourseInfo | null>(null);
   const [lessons, setLessons] = useState<LessonItem[]>([]);
@@ -60,6 +99,16 @@ export default function LessonPlayerPage({
   const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
   const [progressLoading, setProgressLoading] = useState<boolean>(false);
+
+  // Q&A State
+  const [questions, setQuestions] = useState<QuestionItem[]>([]);
+  const [questionInput, setQuestionInput] = useState<string>("");
+  const [questionSubmitting, setQuestionSubmitting] = useState<boolean>(false);
+  const [questionError, setQuestionError] = useState<string | null>(null);
+
+  // Admin reply inputs map (questionId -> text)
+  const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
+  const [replySubmittingId, setReplySubmittingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchCourseAndLessons() {
@@ -127,6 +176,24 @@ export default function LessonPlayerPage({
     checkEnrollmentAndProgress();
   }, [isAuthenticated, courseId]);
 
+  // Fetch lesson questions
+  useEffect(() => {
+    async function fetchQuestions() {
+      if (!lessonId) return;
+      try {
+        const res = await fetch(`/api/lessons/${lessonId}/questions`, { cache: "no-store" });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.questions)) {
+          setQuestions(data.questions);
+        }
+      } catch (e) {
+        console.error("Failed to fetch questions:", e);
+      }
+    }
+
+    fetchQuestions();
+  }, [lessonId]);
+
   // Toggle lesson completion state
   const handleToggleComplete = async () => {
     if (!currentLesson || !isEnrolled) return;
@@ -156,6 +223,80 @@ export default function LessonPlayerPage({
       console.error("Failed to toggle completion:", e);
     } finally {
       setProgressLoading(false);
+    }
+  };
+
+  // Submit Q&A Question
+  const handleQuestionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!questionInput.trim() || !currentLesson) return;
+
+    try {
+      setQuestionSubmitting(true);
+      setQuestionError(null);
+
+      const res = await fetch(`/api/lessons/${currentLesson._id}/questions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: questionInput.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setQuestionError(data.message || "Failed to post question");
+        return;
+      }
+
+      setQuestionInput("");
+      setQuestions((prev) => [data.question, ...prev]);
+    } catch (err: any) {
+      setQuestionError(err.message || "Failed to post question");
+    } finally {
+      setQuestionSubmitting(false);
+    }
+  };
+
+  // Submit Admin Reply
+  const handleReplySubmit = async (questionId: string) => {
+    const text = replyInputs[questionId] || "";
+    if (!text.trim()) return;
+
+    try {
+      setReplySubmittingId(questionId);
+      const res = await fetch(`/api/questions/${questionId}/replies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setQuestions((prev) =>
+          prev.map((q) => (q._id === questionId ? data.question : q))
+        );
+        setReplyInputs((prev) => ({ ...prev, [questionId]: "" }));
+      }
+    } catch (e) {
+      console.error("Failed to post reply:", e);
+    } finally {
+      setReplySubmittingId(null);
+    }
+  };
+
+  // Delete Question
+  const handleDeleteQuestion = async (questionId: string) => {
+    try {
+      const res = await fetch(`/api/questions/${questionId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setQuestions((prev) => prev.filter((q) => q._id !== questionId));
+      }
+    } catch (e) {
+      console.error("Failed to delete question:", e);
     }
   };
 
@@ -207,6 +348,7 @@ export default function LessonPlayerPage({
   // Compute overall progress
   const progressPercent = computeProgress(completedLessonIds.length, lessons.length);
   const isCurrentCompleted = completedLessonIds.includes(currentLesson._id);
+  const canAskQuestion = currentLesson.isPreview || isEnrolled;
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -279,7 +421,7 @@ export default function LessonPlayerPage({
       {/* Main Workspace Layout */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content: Video Screen or Locked Placeholder */}
+          {/* Main Content: Video Screen & Q&A Panel */}
           <div className="lg:col-span-2 space-y-6">
             {/* 100% Completion Banner */}
             {isEnrolled && progressPercent === 100 && (
@@ -401,6 +543,160 @@ export default function LessonPlayerPage({
                 </Link>{" "}
                 curriculum.
               </p>
+            </div>
+
+            {/* Q&A / Discussions Panel */}
+            <div className="card-surface p-6 sm:p-7 space-y-6">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  <span>Lesson Q&A & Discussions ({questions.length})</span>
+                </h3>
+              </div>
+
+              {/* Ask Question Form */}
+              {canAskQuestion ? (
+                <form onSubmit={handleQuestionSubmit} className="space-y-3">
+                  {questionError && (
+                    <div className="p-3 bg-red-tint/50 border border-red/30 rounded-xl text-red text-xs font-medium">
+                      {questionError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Ask a question about this lesson..."
+                      value={questionInput}
+                      onChange={(e) => setQuestionInput(e.target.value)}
+                      required
+                      className="flex-1 px-4 py-2.5 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary transition"
+                    />
+                    <button
+                      type="submit"
+                      disabled={questionSubmitting}
+                      className="px-5 py-2.5 bg-primary hover:bg-primary-dark text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-primary/20 transition"
+                    >
+                      {questionSubmitting ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Send className="w-3.5 h-3.5" />
+                      )}
+                      <span>Ask</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="p-3 bg-surface border border-border rounded-xl text-xs text-muted text-center">
+                  Enroll in this course to participate in lesson Q&A discussions.
+                </div>
+              )}
+
+              {/* Questions List */}
+              {questions.length === 0 ? (
+                <p className="text-xs text-muted italic text-center py-6">
+                  No questions asked yet for this lesson.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {questions.map((q) => {
+                    const isAuthor = q.user?._id === user?._id;
+                    const isAdmin = user?.role === "admin";
+
+                    return (
+                      <div
+                        key={q._id}
+                        className="p-4 bg-surface border border-border rounded-2xl space-y-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs">
+                              {q.user?.name ? q.user.name.charAt(0).toUpperCase() : "U"}
+                            </div>
+                            <div>
+                              <span className="font-bold text-xs text-foreground block">
+                                {q.user?.name || "Student"}
+                              </span>
+                              <span className="text-[10px] text-muted">
+                                {getRelativeTime(q.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {(isAuthor || isAdmin) && (
+                            <button
+                              onClick={() => handleDeleteQuestion(q._id)}
+                              className="text-muted hover:text-red p-1 rounded-lg transition"
+                              title="Delete Question"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-foreground leading-relaxed whitespace-pre-line">
+                          {q.question}
+                        </p>
+
+                        {/* Threaded Replies */}
+                        {q.replies && q.replies.length > 0 ? (
+                          <div className="space-y-2 pl-4 border-l-2 border-primary/30 pt-1">
+                            {q.replies.map((reply, idx) => (
+                              <div key={idx} className="p-3 bg-background/80 rounded-xl space-y-1">
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="font-bold text-primary flex items-center gap-1">
+                                    <CornerDownRight className="w-3 h-3" />
+                                    {reply.user?.name || "Instructor"}
+                                  </span>
+                                  <span className="text-[10px] text-muted">
+                                    {getRelativeTime(reply.createdAt)}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted leading-relaxed">
+                                  {reply.text}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-muted italic pl-4 border-l-2 border-border">
+                            No replies yet
+                          </div>
+                        )}
+
+                        {/* Admin Inline Reply Box */}
+                        {isAdmin && (
+                          <div className="pt-2 flex items-center gap-2">
+                            <input
+                              type="text"
+                              placeholder="Write admin reply..."
+                              value={replyInputs[q._id] || ""}
+                              onChange={(e) =>
+                                setReplyInputs((prev) => ({
+                                  ...prev,
+                                  [q._id]: e.target.value,
+                                }))
+                              }
+                              className="flex-1 px-3 py-1.5 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary"
+                            />
+                            <button
+                              onClick={() => handleReplySubmit(q._id)}
+                              disabled={replySubmittingId === q._id}
+                              className="px-3.5 py-1.5 bg-primary hover:bg-primary-dark text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm"
+                            >
+                              {replySubmittingId === q._id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                "Reply"
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
