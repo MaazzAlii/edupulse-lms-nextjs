@@ -19,6 +19,7 @@ import {
   ExternalLink,
   DollarSign,
   GraduationCap,
+  Video,
 } from "lucide-react";
 
 interface Category {
@@ -464,6 +465,13 @@ export default function AdminCoursesPage() {
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <Link
+                          href={`/admin/courses/${course._id}/lessons`}
+                          className="p-1.5 rounded-lg text-primary hover:text-white hover:bg-primary transition-colors bg-primary-tint"
+                          title="Manage Lessons & Videos"
+                        >
+                          <Video className="w-3.5 h-3.5" />
+                        </Link>
                         <Link
                           href={`/courses/${course._id}`}
                           className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-primary-tint transition-colors"
