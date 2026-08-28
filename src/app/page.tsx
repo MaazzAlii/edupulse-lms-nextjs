@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import {
   Search,
   Filter,
@@ -15,6 +16,10 @@ import {
   SlidersHorizontal,
   Layers,
   Star,
+  Heart,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
 } from "lucide-react";
 
 interface Category {
@@ -46,32 +51,65 @@ interface Course {
 function CatalogContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAuthenticated } = useAuth();
 
   const urlKeyword = searchParams.get("keyword") || "";
   const urlCategory = searchParams.get("category") || "";
   const urlLevel = searchParams.get("level") || "";
+  const urlSort = searchParams.get("sort") || "newest";
+  const urlPage = parseInt(searchParams.get("page") || "1", 10);
 
   const [keywordInput, setKeywordInput] = useState(urlKeyword);
   const [selectedCategory, setSelectedCategory] = useState(urlCategory);
   const [selectedLevel, setSelectedLevel] = useState(urlLevel);
+  const [selectedSort, setSelectedSort] = useState(urlSort);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [total, setTotal] = useState<number>(0);
+  const [page, setPage] = useState<number>(urlPage);
+  const [pages, setPages] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
-  const [categoriesLoading, setCategoriesLoading] = useState<boolean>(true);
+
+  // Wishlist state (set of wishlisted courseIds)
+  const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
 
   // Sync state if URL changes externally
   useEffect(() => {
     setKeywordInput(urlKeyword);
     setSelectedCategory(urlCategory);
     setSelectedLevel(urlLevel);
-  }, [urlKeyword, urlCategory, urlLevel]);
+    setSelectedSort(urlSort);
+    setPage(urlPage);
+  }, [urlKeyword, urlCategory, urlLevel, urlSort, urlPage]);
+
+  // Fetch user wishlist if authenticated
+  useEffect(() => {
+    async function fetchWishlist() {
+      if (!isAuthenticated) return;
+      try {
+        const res = await fetch("/api/wishlist", { cache: "no-store" });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.wishlists)) {
+          const ids = new Set<string>(
+            data.wishlists
+              .map((w: any) => w.course?._id?.toString())
+              .filter(Boolean)
+          );
+          setWishlistedIds(ids);
+        }
+      } catch (err) {
+        console.error("Failed to load user wishlist:", err);
+      }
+    }
+
+    fetchWishlist();
+  }, [isAuthenticated]);
 
   // Fetch categories
   useEffect(() => {
     async function loadCategories() {
       try {
-        setCategoriesLoading(true);
         const res = await fetch("/api/categories");
         const data = await res.json();
         if (data.success && Array.isArray(data.categories)) {
@@ -79,14 +117,12 @@ function CatalogContent() {
         }
       } catch (err) {
         console.error("Error fetching categories:", err);
-      } finally {
-        setCategoriesLoading(false);
       }
     }
     loadCategories();
   }, []);
 
-  // Fetch courses whenever query params change
+  // Fetch courses with pagination and sorting
   const fetchCourses = useCallback(async () => {
     try {
       setLoading(true);
@@ -94,38 +130,58 @@ function CatalogContent() {
       if (urlKeyword) params.set("keyword", urlKeyword);
       if (urlCategory) params.set("category", urlCategory);
       if (urlLevel) params.set("level", urlLevel);
+      if (urlSort) params.set("sort", urlSort);
+      params.set("page", urlPage.toString());
+      params.set("limit", "9");
 
       const queryString = params.toString() ? `?${params.toString()}` : "";
       const res = await fetch(`/api/courses${queryString}`, {
         cache: "no-store",
       });
       const data = await res.json();
+
       if (data.success && Array.isArray(data.courses)) {
         setCourses(data.courses);
+        setTotal(data.total || data.courses.length);
+        setPages(data.pages || 1);
       } else {
         setCourses([]);
+        setTotal(0);
+        setPages(1);
       }
     } catch (err) {
       console.error("Error fetching courses:", err);
       setCourses([]);
+      setTotal(0);
+      setPages(1);
     } finally {
       setLoading(false);
     }
-  }, [urlKeyword, urlCategory, urlLevel]);
+  }, [urlKeyword, urlCategory, urlLevel, urlSort, urlPage]);
 
   useEffect(() => {
     fetchCourses();
   }, [fetchCourses]);
 
-  const updateFilters = (newKeyword?: string, newCat?: string, newLvl?: string) => {
+  const updateFilters = (opts: {
+    keyword?: string;
+    category?: string;
+    level?: string;
+    sort?: string;
+    page?: number;
+  }) => {
     const params = new URLSearchParams();
-    const k = newKeyword !== undefined ? newKeyword : keywordInput;
-    const c = newCat !== undefined ? newCat : selectedCategory;
-    const l = newLvl !== undefined ? newLvl : selectedLevel;
+    const k = opts.keyword !== undefined ? opts.keyword : keywordInput;
+    const c = opts.category !== undefined ? opts.category : selectedCategory;
+    const l = opts.level !== undefined ? opts.level : selectedLevel;
+    const s = opts.sort !== undefined ? opts.sort : selectedSort;
+    const p = opts.page !== undefined ? opts.page : 1; // reset page to 1 on filter change unless specified
 
     if (k.trim()) params.set("keyword", k.trim());
     if (c) params.set("category", c);
     if (l) params.set("level", l);
+    if (s && s !== "newest") params.set("sort", s);
+    if (p > 1) params.set("page", p.toString());
 
     const queryString = params.toString();
     router.push(queryString ? `/?${queryString}` : "/");
@@ -133,27 +189,50 @@ function CatalogContent() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateFilters(keywordInput, undefined, undefined);
+    updateFilters({ keyword: keywordInput, page: 1 });
   };
 
-  const handleCategoryChange = (catId: string) => {
-    setSelectedCategory(catId);
-    updateFilters(undefined, catId, undefined);
-  };
+  const handleToggleWishlist = async (e: React.MouseEvent, courseId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-  const handleLevelChange = (lvl: string) => {
-    setSelectedLevel(lvl);
-    updateFilters(undefined, undefined, lvl);
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=/`);
+      return;
+    }
+
+    const isWishlisted = wishlistedIds.has(courseId);
+
+    try {
+      if (isWishlisted) {
+        setWishlistedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(courseId);
+          return next;
+        });
+        await fetch(`/api/wishlist/${courseId}`, { method: "DELETE" });
+      } else {
+        setWishlistedIds((prev) => new Set(prev).add(courseId));
+        await fetch("/api/wishlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseId }),
+        });
+      }
+    } catch (err) {
+      console.error("Wishlist toggle error:", err);
+    }
   };
 
   const resetAllFilters = () => {
     setKeywordInput("");
     setSelectedCategory("");
     setSelectedLevel("");
+    setSelectedSort("newest");
     router.push("/");
   };
 
-  const hasActiveFilters = Boolean(urlKeyword || urlCategory || urlLevel);
+  const hasActiveFilters = Boolean(urlKeyword || urlCategory || urlLevel || (urlSort && urlSort !== "newest"));
 
   return (
     <div className="min-h-screen pb-16">
@@ -219,7 +298,7 @@ function CatalogContent() {
             </span>
 
             <button
-              onClick={() => handleCategoryChange("")}
+              onClick={() => updateFilters({ category: "", page: 1 })}
               className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                 !selectedCategory
                   ? "bg-primary text-white shadow-sm shadow-primary/25"
@@ -232,7 +311,7 @@ function CatalogContent() {
             {categories.map((cat) => (
               <button
                 key={cat._id}
-                onClick={() => handleCategoryChange(cat._id)}
+                onClick={() => updateFilters({ category: cat._id, page: 1 })}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                   selectedCategory === cat._id
                     ? "bg-primary text-white shadow-sm shadow-primary/25"
@@ -244,19 +323,35 @@ function CatalogContent() {
             ))}
           </div>
 
-          {/* Level Filter & Reset */}
-          <div className="flex items-center gap-3 shrink-0 self-end lg:self-center">
+          {/* Level Filter, Sort Dropdown & Reset */}
+          <div className="flex flex-wrap items-center gap-3 shrink-0 self-end lg:self-center">
+            {/* Level Selector */}
             <div className="flex items-center gap-1.5 bg-surface border border-border rounded-xl px-2.5 py-1.5 shadow-sm">
               <SlidersHorizontal className="w-3.5 h-3.5 text-muted" />
               <select
                 value={selectedLevel}
-                onChange={(e) => handleLevelChange(e.target.value)}
+                onChange={(e) => updateFilters({ level: e.target.value, page: 1 })}
                 className="bg-transparent text-xs font-medium text-foreground focus:outline-none cursor-pointer pr-1"
               >
                 <option value="">All Levels</option>
                 <option value="Beginner">Beginner</option>
                 <option value="Intermediate">Intermediate</option>
                 <option value="Advanced">Advanced</option>
+              </select>
+            </div>
+
+            {/* Sort Selector */}
+            <div className="flex items-center gap-1.5 bg-surface border border-border rounded-xl px-2.5 py-1.5 shadow-sm">
+              <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
+              <select
+                value={selectedSort}
+                onChange={(e) => updateFilters({ sort: e.target.value, page: 1 })}
+                className="bg-transparent text-xs font-medium text-foreground focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="newest">Newest First</option>
+                <option value="rating">Highest Rated</option>
+                <option value="price_asc">Price: Low to High</option>
+                <option value="price_desc">Price: High to Low</option>
               </select>
             </div>
 
@@ -277,12 +372,12 @@ function CatalogContent() {
         <div className="py-4 flex items-center justify-between">
           <p className="text-xs text-muted font-medium">
             {loading ? (
-              "Searching courses..."
+              "Searching catalog..."
             ) : (
               <>
-                Showing <strong className="text-foreground">{courses.length}</strong>{" "}
-                {courses.length === 1 ? "course" : "courses"}
-                {hasActiveFilters && " for current filters"}
+                Showing <strong className="text-foreground">{courses.length}</strong> of{" "}
+                <strong className="text-foreground">{total}</strong>{" "}
+                {total === 1 ? "course" : "courses"}
               </>
             )}
           </p>
@@ -333,116 +428,181 @@ function CatalogContent() {
         ) : (
           /* Course Cards */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-            {courses.map((course) => (
-              <Link
-                key={course._id}
-                href={`/courses/${course._id}`}
-                className="group card-surface overflow-hidden flex flex-col card-surface-hover hover:border-primary/30"
-              >
-                {/* Thumbnail / Header */}
-                <div className="relative w-full h-48 bg-primary-tint/50 overflow-hidden flex items-center justify-center">
-                  {course.thumbnailUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={course.thumbnailUrl}
-                      alt={course.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                    />
-                  ) : null}
+            {courses.map((course) => {
+              const isSaved = wishlistedIds.has(course._id);
 
-                  {/* Fallback pattern when no thumbnail */}
-                  {!course.thumbnailUrl && (
-                    <div className="flex flex-col items-center gap-2 text-primary/70 group-hover:scale-105 transition-transform duration-300">
-                      <GraduationCap className="w-12 h-12 text-gold" />
-                      <span className="text-xs font-bold tracking-wider uppercase text-primary/60">
-                        {course.category?.name || "Course"}
-                      </span>
-                    </div>
-                  )}
+              return (
+                <Link
+                  key={course._id}
+                  href={`/courses/${course._id}`}
+                  className="group card-surface overflow-hidden flex flex-col card-surface-hover hover:border-primary/30 relative"
+                >
+                  {/* Thumbnail / Header */}
+                  <div className="relative w-full h-48 bg-primary-tint/50 overflow-hidden flex items-center justify-center">
+                    {course.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={course.thumbnailUrl}
+                        alt={course.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                      />
+                    ) : null}
 
-                  {/* Badges Overlays */}
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                    {course.category && (
-                      <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-surface/90 backdrop-blur-md text-primary shadow-sm border border-border">
-                        {course.category.name}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="absolute top-3 right-3">
-                    <span
-                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase tracking-wider shadow-sm ${
-                        course.level === "Beginner"
-                          ? "bg-green-tint text-green border border-green/30"
-                          : course.level === "Intermediate"
-                          ? "bg-gold-tint text-gold border border-gold/30"
-                          : "bg-red-tint text-red border border-red/30"
-                      }`}
-                    >
-                      {course.level}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Card Body */}
-                <div className="p-5 flex-1 flex flex-col">
-                  <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug mb-2">
-                    {course.title}
-                  </h3>
-
-                  <p className="text-xs text-muted line-clamp-2 leading-relaxed mb-3">
-                    {course.description}
-                  </p>
-
-                  {/* Rating display */}
-                  <div className="flex items-center gap-1.5 mb-4 text-xs font-semibold">
-                    {course.numReviews && course.numReviews > 0 ? (
-                      <>
-                        <div className="flex items-center gap-1 text-gold bg-gold-tint px-2 py-0.5 rounded-md border border-gold/30">
-                          <Star className="w-3.5 h-3.5 fill-gold" />
-                          <span className="font-bold text-foreground">
-                            {course.averageRating?.toFixed(1)}
-                          </span>
-                        </div>
-                        <span className="text-muted text-[11px]">
-                          ({course.numReviews} {course.numReviews === 1 ? "review" : "reviews"})
+                    {/* Fallback pattern when no thumbnail */}
+                    {!course.thumbnailUrl && (
+                      <div className="flex flex-col items-center gap-2 text-primary/70 group-hover:scale-105 transition-transform duration-300">
+                        <GraduationCap className="w-12 h-12 text-gold" />
+                        <span className="text-xs font-bold tracking-wider uppercase text-primary/60">
+                          {course.category?.name || "Course"}
                         </span>
-                      </>
-                    ) : (
-                      <span className="text-[11px] text-muted font-normal italic">
-                        No reviews yet
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-muted font-medium">
-                      <div className="w-6 h-6 rounded-full bg-primary-tint text-primary flex items-center justify-center font-bold text-[10px]">
-                        {course.instructor.charAt(0).toUpperCase()}
                       </div>
-                      <span className="truncate max-w-[120px]">
-                        {course.instructor}
-                      </span>
-                    </div>
+                    )}
 
-                    <div className="text-right">
-                      {course.price === 0 ? (
-                        <span className="text-sm font-extrabold text-green">
-                          Free
-                        </span>
-                      ) : (
-                        <span className="text-base font-extrabold text-foreground">
-                          ${course.price.toFixed(2)}
+                    {/* Badges Overlays */}
+                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                      {course.category && (
+                        <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-surface/90 backdrop-blur-md text-primary shadow-sm border border-border">
+                          {course.category.name}
                         </span>
                       )}
                     </div>
+
+                    <div className="absolute top-3 right-3 flex items-center gap-2">
+                      {/* Wishlist Heart Button */}
+                      <button
+                        onClick={(e) => handleToggleWishlist(e, course._id)}
+                        className={`p-2 rounded-xl backdrop-blur-md transition-all shadow-md ${
+                          isSaved
+                            ? "bg-red-500 text-white fill-red-500 scale-105"
+                            : "bg-slate-900/70 text-slate-300 hover:text-red-400 hover:bg-slate-900"
+                        }`}
+                        title={isSaved ? "Remove from Wishlist" : "Save to Wishlist"}
+                      >
+                        <Heart
+                          className={`w-3.5 h-3.5 ${isSaved ? "fill-current" : ""}`}
+                        />
+                      </button>
+
+                      <span
+                        className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase tracking-wider shadow-sm ${
+                          course.level === "Beginner"
+                            ? "bg-green-tint text-green border border-green/30"
+                            : course.level === "Intermediate"
+                            ? "bg-gold-tint text-gold border border-gold/30"
+                            : "bg-red-tint text-red border border-red/30"
+                        }`}
+                      >
+                        {course.level}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+
+                  {/* Card Body */}
+                  <div className="p-5 flex-1 flex flex-col">
+                    <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug mb-2">
+                      {course.title}
+                    </h3>
+
+                    <p className="text-xs text-muted line-clamp-2 leading-relaxed mb-3">
+                      {course.description}
+                    </p>
+
+                    {/* Rating display */}
+                    <div className="flex items-center gap-1.5 mb-4 text-xs font-semibold">
+                      {course.numReviews && course.numReviews > 0 ? (
+                        <>
+                          <div className="flex items-center gap-1 text-gold bg-gold-tint px-2 py-0.5 rounded-md border border-gold/30">
+                            <Star className="w-3.5 h-3.5 fill-gold" />
+                            <span className="font-bold text-foreground">
+                              {course.averageRating?.toFixed(1)}
+                            </span>
+                          </div>
+                          <span className="text-muted text-[11px]">
+                            ({course.numReviews} {course.numReviews === 1 ? "review" : "reviews"})
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-[11px] text-muted font-normal italic">
+                          No reviews yet
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs text-muted font-medium">
+                        <div className="w-6 h-6 rounded-full bg-primary-tint text-primary flex items-center justify-center font-bold text-[10px]">
+                          {course.instructor.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="truncate max-w-[120px]">
+                          {course.instructor}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        {course.price === 0 ? (
+                          <span className="text-sm font-extrabold text-green">
+                            Free
+                          </span>
+                        ) : (
+                          <span className="text-base font-extrabold text-foreground">
+                            ${course.price.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Pagination Bar */}
+        {pages > 1 && (
+          <div className="mt-10 flex items-center justify-between pt-6 border-t border-border">
+            <span className="text-xs text-muted font-medium">
+              Page <strong className="text-foreground">{page}</strong> of{" "}
+              <strong className="text-foreground">{pages}</strong>
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => updateFilters({ page: page - 1 })}
+                disabled={page <= 1 || loading}
+                className="px-3.5 py-2 rounded-xl bg-surface border border-border text-xs font-semibold text-foreground hover:bg-black/5 transition disabled:opacity-40 flex items-center gap-1"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Prev</span>
+              </button>
+
+              <div className="hidden sm:flex items-center gap-1">
+                {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => updateFilters({ page: p })}
+                    className={`w-8 h-8 rounded-xl text-xs font-bold transition ${
+                      p === page
+                        ? "bg-primary text-white shadow-sm"
+                        : "bg-surface text-muted hover:text-foreground hover:bg-black/5 border border-border"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => updateFilters({ page: page + 1 })}
+                disabled={page >= pages || loading}
+                className="px-3.5 py-2 rounded-xl bg-surface border border-border text-xs font-semibold text-foreground hover:bg-black/5 transition disabled:opacity-40 flex items-center gap-1"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </main>

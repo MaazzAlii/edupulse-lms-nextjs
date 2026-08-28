@@ -32,7 +32,7 @@ async function generateUniqueCourseSlug(title: string): Promise<string> {
   return slug;
 }
 
-// GET /api/courses - Public Catalog: Filter by keyword, category, level.
+// GET /api/courses - Public Catalog: Filter by keyword, category, level, sort, page, limit.
 // Admin users can see draft courses; non-admins/anonymous only see isPublished: true
 export async function GET(req: NextRequest) {
   try {
@@ -42,6 +42,9 @@ export async function GET(req: NextRequest) {
     const keyword = searchParams.get("keyword")?.trim();
     const category = searchParams.get("category")?.trim();
     const level = searchParams.get("level")?.trim();
+    const sort = searchParams.get("sort")?.trim() || "newest";
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.max(1, parseInt(searchParams.get("limit") || "9", 10));
 
     // Check if requester is admin
     const authUser = await getAuthUserFromRequest(req);
@@ -66,11 +69,34 @@ export async function GET(req: NextRequest) {
       filter.level = level;
     }
 
+    // Determine sort options
+    let sortOption: Record<string, 1 | -1> = { createdAt: -1 };
+    if (sort === "price_asc") {
+      sortOption = { price: 1 };
+    } else if (sort === "price_desc") {
+      sortOption = { price: -1 };
+    } else if (sort === "rating") {
+      sortOption = { averageRating: -1, createdAt: -1 };
+    } else if (sort === "oldest") {
+      sortOption = { createdAt: 1 };
+    }
+
+    const total = await Course.countDocuments(filter);
+    const pages = Math.ceil(total / limit) || 1;
+    const skip = (page - 1) * limit;
+
     const courses = await Course.find(filter)
       .populate("category", "name slug")
-      .sort({ createdAt: -1 });
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit);
 
-    return apiSuccess({ courses });
+    return apiSuccess({
+      courses,
+      total,
+      page,
+      pages,
+    });
   } catch (error: any) {
     return apiError(error.message || "Failed to fetch courses", 500);
   }
