@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T16:53:35+05:00
-- Current part in progress: Part 8 — Q&A / Discussions Complete
-- Last part fully completed and verified: Part 8 — Q&A / Discussions
+- Last updated: 2026-08-28T16:57:40+05:00
+- Current part in progress: Part 9 — Notifications Complete
+- Last part fully completed and verified: Part 9 — Notifications
 
 ## Part-by-Part Log
 
@@ -52,6 +52,15 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `898f448`: feat(admin): cross-course questions queue
 - Notes/deviations from spec: Cross-course admin Q&A queue with threaded replies and relative timestamping ("2d ago").
 
+### Part 9 — Notifications
+- Status: complete
+- Commits:
+  - `f32a1b0`: feat(schema): Notification model
+  - `6511baa`: feat(api): notification create hooks in webhook and questions routes
+  - `f126f5f`: feat(nav): notification bell component
+  - `2ab5ab4`: feat(cron): vercel cron notification cleanup
+- Notes/deviations from spec: Vercel Cron cleanup endpoint with CRON_SECRET authorization and 30-day read notification purge.
+
 ### Part 10 — Admin User Management
 - Status: complete
 - Commits:
@@ -72,4 +81,4 @@ Update it after every meaningful sub-step — not just at the end of a part.
 - `STRIPE_WEBHOOK_SECRET` (For local webhook signature verification with `stripe listen` or Vercel production webhook)
 
 ## Open Questions / Flags for the User
-- Next part in sequence: Part 9 (Notifications).
+- Next part in sequence: Part 11 (Admin Analytics).
