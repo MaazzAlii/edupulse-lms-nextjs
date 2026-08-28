@@ -21,8 +21,8 @@ An industrial-grade, full-stack Learning Management System built with **Next.js 
 | 1 | Foundation & Auth Engine | ✅ Completed | Next.js 15 setup, 5 Mongoose schemas, JWT cookie auth, protected dashboard |
 | 2 | Course Catalog & Admin CRUD | ✅ Completed | Public catalog, filter/search, course detail, category & course admin studio |
 | 3 | Lessons & Video Streaming | ✅ Completed | Vercel Blob video upload, admin curriculum studio, gated player, HTTP streaming |
-| 4 | Payments & Checkout | ⏳ In Progress | Stripe Checkout Sessions, success/cancel pages, free-course bypass, checkout API |
-| 5 | Enrollment Engine | ⏳ Upcoming | Webhook completes purchase, purchase guard on lessons, "My Courses" |
+| 4 | Payments & Checkout | ✅ Completed | Stripe Checkout Sessions, success/cancel pages, free-course bypass, checkout API |
+| 5 | Enrollment Engine | ✅ Completed | Webhook completes purchase, purchase guard on lessons, "My Courses" |
 | 6 | Progress & Certificates | ⏳ Upcoming | Lesson completion tracking, progress bar, printable certificate |
 | 7 | Reviews & Ratings | ⏳ Upcoming | Star ratings, average rating, admin reply |
 | 8 | Q&A / Discussions | ⏳ Upcoming | Per-lesson questions, threaded replies |
