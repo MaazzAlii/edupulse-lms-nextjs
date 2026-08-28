@@ -4,6 +4,8 @@ import User from "@/models/User";
 import { signToken } from "@/lib/jwt";
 import { apiError, apiSuccess } from "@/lib/response";
 import { AUTH_COOKIE } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
+import { welcomeEmailTemplate } from "@/lib/emailTemplates";
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,6 +34,13 @@ export async function POST(req: NextRequest) {
       password,
       role: "student",
     });
+
+    // Send Welcome Email (non-blocking)
+    sendEmail({
+      to: user.email,
+      subject: "Welcome to EduPulse Academy! 🚀",
+      html: welcomeEmailTemplate(user.name),
+    }).catch((err) => console.error("Welcome email send error:", err));
 
     const token = signToken({
       id: user._id.toString(),
