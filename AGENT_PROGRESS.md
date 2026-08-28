@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T17:22:15+05:00
-- Current part in progress: Part 17 — SEO, Performance & Accessibility Complete
-- Last part fully completed and verified: Part 17 — SEO, Performance & Accessibility
+- Last updated: 2026-08-28T17:26:00+05:00
+- Current part in progress: Part 18 — Security Hardening Complete
+- Last part fully completed and verified: Part 18 — Security Hardening
 
 ## Part-by-Part Log
 
@@ -123,6 +123,14 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `37b8747`: feat(seo): dynamic metadata, sitemap, and robots.txt
 - Notes/deviations from spec: Dynamic sitemap.xml, robots.txt, and course OpenGraph metadata layout.
 
+### Part 18 — Security Hardening
+- Status: complete
+- Commits:
+  - `21506ff`: feat(validation): zod schemas on auth, checkout, review, question routes
+  - `2a4e386`: feat(security): rate limiting on auth routes
+  - `3f12455`: feat(security): CSP and security headers
+- Notes/deviations from spec: Standardized Zod input validation, IP rate limiting, and HTTP Content-Security-Policy headers.
+
 ### Part 19 — Deployment to Vercel
 - Status: complete
 - Commits:
@@ -135,4 +143,4 @@ Update it after every meaningful sub-step — not just at the end of a part.
 - `RESEND_API_KEY` (Resend API key `re_...` for transactional email dispatching)
 
 ## Open Questions / Flags for the User
-- Next part in sequence: Part 18 (Security Hardening).
+- Next part in sequence: Part 20 (Final QA & Submission).
