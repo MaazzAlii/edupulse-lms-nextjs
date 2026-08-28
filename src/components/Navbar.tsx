@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import NotificationBell from "@/components/NotificationBell";
 import { GraduationCap, LogOut, LayoutDashboard, Shield, BookOpen, User } from "lucide-react";
 
 export default function Navbar() {
@@ -102,6 +103,9 @@ export default function Navbar() {
             </div>
           ) : isAuthenticated && user ? (
             <div className="flex items-center gap-3">
+              {/* Notification Bell Component */}
+              <NotificationBell />
+
               {isAdmin && (
                 <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-gold-tint text-gold border border-gold/30">
                   <Shield className="w-3 h-3" />
