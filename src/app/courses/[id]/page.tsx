@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import {
   ArrowLeft,
   User,
@@ -15,6 +17,10 @@ import {
   AlertCircle,
   Video,
   CheckCircle2,
+  Loader2,
+  X,
+  CreditCard,
+  PlayCircle,
 } from "lucide-react";
 
 interface CourseDetail {
@@ -51,11 +57,22 @@ export default function CourseDetailPage({
 }) {
   const resolvedParams = use(params);
   const courseId = resolvedParams.id;
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
 
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [lessons, setLessons] = useState<LessonSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Enrollment & Checkout state
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<boolean>(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [showCancelledBanner, setShowCancelledBanner] = useState<boolean>(
+    searchParams.get("checkout") === "cancelled"
+  );
 
   useEffect(() => {
     async function loadCourseAndLessons() {
@@ -92,6 +109,64 @@ export default function CourseDetailPage({
       loadCourseAndLessons();
     }
   }, [courseId]);
+
+  // Check enrollment status if user is authenticated
+  useEffect(() => {
+    async function checkEnrollment() {
+      if (!isAuthenticated || !courseId) return;
+      try {
+        const res = await fetch(`/api/enrollments/me?courseId=${courseId}`, { cache: "no-store" });
+        const data = await res.json();
+        if (data.success && data.paymentStatus === "Paid") {
+          setIsEnrolled(true);
+        }
+      } catch (e) {
+        console.error("Failed to check enrollment status:", e);
+      }
+    }
+
+    checkEnrollment();
+  }, [isAuthenticated, courseId]);
+
+  const handleEnrollClick = async () => {
+    setCheckoutError(null);
+
+    // 1. If user is not authenticated, redirect to login
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=/courses/${courseId}`);
+      return;
+    }
+
+    // 2. Trigger Checkout API
+    try {
+      setCheckoutLoading(true);
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        if (data.message === "You already own this course.") {
+          setIsEnrolled(true);
+        }
+        setCheckoutError(data.message || "Failed to initiate checkout.");
+        return;
+      }
+
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      } else {
+        setCheckoutError("No checkout redirect URL received.");
+      }
+    } catch (err: any) {
+      setCheckoutError(err.message || "An unexpected error occurred during checkout.");
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -130,8 +205,24 @@ export default function CourseDetailPage({
     );
   }
 
+  const firstLesson = lessons.length > 0 ? lessons[0] : null;
+
   return (
     <div className="min-h-screen pb-20">
+      {/* Checkout Cancelled Banner */}
+      {showCancelledBanner && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-300 py-3 px-4 text-center text-sm font-medium flex items-center justify-center gap-3">
+          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>Checkout cancelled — you were not charged.</span>
+          <button
+            onClick={() => setShowCancelledBanner(false)}
+            className="p-1 hover:bg-amber-500/20 rounded-md transition text-amber-400"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header Breadcrumb Banner */}
       <section className="bg-gradient-to-b from-primary-tint/50 via-surface to-background border-b border-border py-8 sm:py-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -215,7 +306,7 @@ export default function CourseDetailPage({
               </p>
             </div>
 
-            {/* Real Curriculum View (Part 3) */}
+            {/* Curriculum View */}
             <div className="card-surface p-6 sm:p-8">
               <div className="flex items-center justify-between pb-4 mb-6 border-b border-border">
                 <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
@@ -243,7 +334,7 @@ export default function CourseDetailPage({
                     <div
                       key={lesson._id}
                       className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                        lesson.isPreview
+                        lesson.isPreview || isEnrolled
                           ? "bg-surface hover:bg-primary-tint/30 border-border hover:border-primary/40 cursor-pointer"
                           : "bg-surface/50 border-border/60 opacity-80"
                       }`}
@@ -251,7 +342,7 @@ export default function CourseDetailPage({
                       <div className="flex items-center gap-3.5 min-w-0 pr-4">
                         <div
                           className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                            lesson.isPreview
+                            lesson.isPreview || isEnrolled
                               ? "bg-primary text-white shadow-sm"
                               : "bg-border text-muted"
                           }`}
@@ -260,7 +351,7 @@ export default function CourseDetailPage({
                         </div>
                         <span
                           className={`text-sm font-semibold truncate ${
-                            lesson.isPreview ? "text-foreground" : "text-muted"
+                            lesson.isPreview || isEnrolled ? "text-foreground" : "text-muted"
                           }`}
                         >
                           {lesson.title}
@@ -276,10 +367,18 @@ export default function CourseDetailPage({
                             <Play className="w-3 h-3 fill-current" />
                             <span>Preview</span>
                           </Link>
+                        ) : isEnrolled ? (
+                          <Link
+                            href={`/learn/${course._id}/${lesson._id}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors shadow-sm"
+                          >
+                            <Play className="w-3 h-3 fill-current" />
+                            <span>Play</span>
+                          </Link>
                         ) : (
                           <div
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-muted select-none"
-                            title="Enroll to unlock (Part 4)"
+                            title="Enroll to unlock"
                           >
                             <Lock className="w-3 h-3" />
                             <span>Locked</span>
@@ -296,7 +395,7 @@ export default function CourseDetailPage({
           {/* Right Column / Enrollment Card */}
           <div className="lg:col-span-1">
             <div className="sticky top-24 card-surface p-6 sm:p-7 shadow-xl shadow-primary/5 border-primary/20 space-y-6">
-              {/* Media Preview if exists */}
+              {/* Media Preview */}
               {course.thumbnailUrl ? (
                 <div className="w-full h-44 rounded-xl overflow-hidden bg-primary-tint/40 border border-border">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -330,19 +429,59 @@ export default function CourseDetailPage({
                 </div>
               </div>
 
-              {/* Visibly Disabled Enroll Button with explicit caption */}
+              {/* Checkout Error Message */}
+              {checkoutError && (
+                <div className="p-3 bg-red-tint/50 border border-red/30 rounded-xl text-red text-xs font-medium flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{checkoutError}</span>
+                </div>
+              )}
+
+              {/* Real Enroll / Start Learning Button */}
               <div className="space-y-2">
-                <button
-                  disabled
-                  className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gray-200 text-gray-400 cursor-not-allowed flex items-center justify-center gap-2 border border-gray-300 shadow-none transition-none"
-                  title="Payments coming in Part 4"
-                >
-                  <Lock className="w-4 h-4" />
-                  <span>Enroll in Course</span>
-                </button>
-                <p className="text-[11px] text-center text-muted font-medium">
-                  🔒 Payments & enrollment coming in Part 4
-                </p>
+                {isEnrolled ? (
+                  firstLesson ? (
+                    <Link
+                      href={`/learn/${course._id}/${firstLesson._id}`}
+                      className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"
+                    >
+                      <PlayCircle className="w-5 h-5" />
+                      <span>Start Learning Now</span>
+                    </Link>
+                  ) : (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs font-bold text-center">
+                      ✓ You own this course
+                    </div>
+                  )
+                ) : (
+                  <button
+                    onClick={handleEnrollClick}
+                    disabled={checkoutLoading}
+                    className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {checkoutLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Preparing Checkout...</span>
+                      </>
+                    ) : course.price === 0 ? (
+                      <>
+                        <Sparkles className="w-4 h-4 text-gold" />
+                        <span>Enroll for Free</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4" />
+                        <span>Enroll in Course (${course.price.toFixed(2)})</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                {!isEnrolled && (
+                  <p className="text-[11px] text-center text-muted font-medium">
+                    ⚡ Instant access • Secure 256-bit Stripe checkout
+                  </p>
+                )}
               </div>
 
               {/* Course Highlights */}
