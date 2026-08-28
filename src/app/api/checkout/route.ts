@@ -6,6 +6,7 @@ import Enrollment from "@/models/Enrollment";
 import Lesson from "@/models/Lesson";
 import { getStripe } from "@/lib/stripe";
 import { apiError, apiSuccess } from "@/lib/response";
+import { checkoutSchema } from "@/lib/validation";
 
 /**
  * POST /api/checkout
@@ -20,13 +21,14 @@ export async function POST(req: NextRequest) {
       return apiError("You must be logged in to enroll in a course.", 401);
     }
 
-    // 2. Parse request body
+    // 2. Parse & Zod validate request body
     const body = await req.json().catch(() => ({}));
-    const { courseId } = body;
-
-    if (!courseId) {
-      return apiError("Course ID is required.", 400);
+    const parsed = checkoutSchema.safeParse(body);
+    if (!parsed.success) {
+      return apiError(parsed.error.issues[0].message, 400);
     }
+
+    const { courseId } = parsed.data;
 
     // 3. Connect DB and fetch course
     await connectDB();
