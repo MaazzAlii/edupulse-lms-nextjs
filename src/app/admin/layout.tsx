@@ -10,6 +10,7 @@ import {
   FolderTree,
   BookOpen,
   Users,
+  MessageSquare,
   ArrowLeft,
   GraduationCap,
   PlusCircle,
@@ -67,6 +68,12 @@ export default function AdminLayout({
       label: "Users",
       href: "/admin/users",
       icon: Users,
+      exact: false,
+    },
+    {
+      label: "Q&A Discussions",
+      href: "/admin/questions",
+      icon: MessageSquare,
       exact: false,
     },
   ];
