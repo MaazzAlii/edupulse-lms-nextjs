@@ -4,7 +4,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import NotificationBell from "@/components/NotificationBell";
-import { GraduationCap, LogOut, LayoutDashboard, Shield, BookOpen, User } from "lucide-react";
+import {
+  GraduationCap,
+  LogOut,
+  LayoutDashboard,
+  Shield,
+  BookOpen,
+  User,
+  Heart,
+} from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -56,17 +64,31 @@ export default function Navbar() {
               Courses
             </Link>
             {isAuthenticated && (
-              <Link
-                href="/my-courses"
-                className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
-                  isActive("/my-courses")
-                    ? "bg-primary-tint text-primary font-semibold"
-                    : "text-muted hover:text-foreground hover:bg-black/5"
-                }`}
-              >
-                <BookOpen className="w-4 h-4" />
-                My Courses
-              </Link>
+              <>
+                <Link
+                  href="/my-courses"
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                    isActive("/my-courses")
+                      ? "bg-primary-tint text-primary font-semibold"
+                      : "text-muted hover:text-foreground hover:bg-black/5"
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4" />
+                  My Courses
+                </Link>
+
+                <Link
+                  href="/wishlist"
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                    isActive("/wishlist")
+                      ? "bg-primary-tint text-primary font-semibold"
+                      : "text-muted hover:text-foreground hover:bg-black/5"
+                  }`}
+                >
+                  <Heart className="w-4 h-4 text-red-400" />
+                  Wishlist
+                </Link>
+              </>
             )}
             <Link
               href="/dashboard"
