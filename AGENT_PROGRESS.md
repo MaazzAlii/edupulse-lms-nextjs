@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T17:06:50+05:00
-- Current part in progress: Part 12 — Search, Filters & Wishlist Complete
-- Last part fully completed and verified: Part 12 — Search, Filters & Wishlist
+- Last updated: 2026-08-28T17:09:05+05:00
+- Current part in progress: Part 13 — Student Dashboard Complete
+- Last part fully completed and verified: Part 13 — Student Dashboard
 
 ## Part-by-Part Log
 
@@ -86,6 +86,12 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `97d4929`: feat(wishlist): save and remove courses with wishlist page and navbar link
 - Notes/deviations from spec: Wishlist model with unique compound index `{ user: 1, course: 1 }` and dedicated student wishlist studio.
 
+### Part 13 — Student Dashboard ("My Learning")
+- Status: complete
+- Commits:
+  - `c6dc120`: feat(dashboard): unified student home with continue-learning, progress, and purchase history
+- Notes/deviations from spec: Unified dashboard summary API and student home base.
+
 ### Part 19 — Deployment to Vercel
 - Status: complete
 - Commits:
@@ -97,4 +103,4 @@ Update it after every meaningful sub-step — not just at the end of a part.
 - `STRIPE_WEBHOOK_SECRET` (For local webhook signature verification with `stripe listen` or Vercel production webhook)
 
 ## Open Questions / Flags for the User
-- Next part in sequence: Part 13 (Student Dashboard).
+- Next part in sequence: Part 14 (Transactional Email).
