@@ -23,7 +23,7 @@ An industrial-grade, full-stack Learning Management System built with **Next.js 
 | 3 | Lessons & Video Streaming | ✅ Completed | Vercel Blob video upload, admin curriculum studio, gated player, HTTP streaming |
 | 4 | Payments & Checkout | ✅ Completed | Stripe Checkout Sessions, success/cancel pages, free-course bypass, checkout API |
 | 5 | Enrollment Engine | ✅ Completed | Webhook completes purchase, purchase guard on lessons, "My Courses" |
-| 6 | Progress & Certificates | ⏳ Upcoming | Lesson completion tracking, progress bar, printable certificate |
+| 6 | Progress & Certificates | ✅ Completed | Lesson completion tracking, progress bar, printable certificate |
 | 7 | Reviews & Ratings | ⏳ Upcoming | Star ratings, average rating, admin reply |
 | 8 | Q&A / Discussions | ⏳ Upcoming | Per-lesson questions, threaded replies |
 | 9 | Notifications | ⏳ Upcoming | In-app notification center, cron cleanup |

@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T16:39:30+05:00
-- Current part in progress: Reached Checkpoint after Part 19 (Deployment Configuration Complete)
-- Last part fully completed and verified: Part 19 — Deployment to Vercel
+- Last updated: 2026-08-28T16:47:40+05:00
+- Current part in progress: Part 6 — Progress Tracking & Certificates Complete
+- Last part fully completed and verified: Part 6 — Progress Tracking & Certificates
 
 ## Part-by-Part Log
 
@@ -26,6 +26,15 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `1950850`: feat(dashboard): my-courses page and navbar navigation
 - Notes/deviations from spec: Uses Node.js runtime for raw request body Stripe signature verification in `src/app/api/webhooks/stripe/route.ts`.
 
+### Part 6 — Progress Tracking & Certificates
+- Status: complete
+- Commits:
+  - `9e0702e`: feat(schema): add completedAt to Enrollment
+  - `95b1373`: feat(api): lesson progress tracking route and helper
+  - `bcf8297`: feat(learn): progress bar and mark-complete toggle
+  - `2943316`: feat(certificate): printable completion certificate page
+- Notes/deviations from spec: Full-bleed landscape certificate layout with print-to-PDF styles and access guard.
+
 ### Part 10 — Admin User Management
 - Status: complete
 - Commits:
@@ -38,7 +47,7 @@ Update it after every meaningful sub-step — not just at the end of a part.
 ### Part 19 — Deployment to Vercel
 - Status: complete
 - Commits:
-  - `deploy(vercel)`: vercel.json configuration and deployment documentation
+  - `5c498e3`: deploy(vercel): vercel.json configuration and deployment documentation
 - Notes/deviations from spec: Configured vercel.json preset, environment variable templates, and README deployment guide.
 
 ## Environment / Credentials Needed From User
@@ -46,4 +55,4 @@ Update it after every meaningful sub-step — not just at the end of a part.
 - `STRIPE_WEBHOOK_SECRET` (For local webhook signature verification with `stripe listen` or Vercel production webhook)
 
 ## Open Questions / Flags for the User
-- Ready for Part 20 (Final QA & Submission Packaging).
+- Next part in sequence: Part 7 (Reviews & Ratings).
