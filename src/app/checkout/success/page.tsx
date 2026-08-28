@@ -9,67 +9,104 @@ function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = searchParams.get("session_id");
-  const courseId = searchParams.get("courseId");
+  const initialCourseId = searchParams.get("courseId");
 
   const [status, setStatus] = useState<"polling" | "success" | "timeout" | "error">("polling");
   const [errorMessage, setErrorMessage] = useState("");
+  const [courseId, setCourseId] = useState<string | null>(initialCourseId);
   const [firstLessonId, setFirstLessonId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!courseId) {
-      // If courseId isn't explicitly in params, we can still show a generic success state or polling state
-      setStatus("success");
-      return;
-    }
+    let isSubscribed = true;
 
-    let attempts = 0;
-    const maxAttempts = 8; // 8 * 2s = 16 seconds timeout
-    let intervalId: NodeJS.Timeout;
+    const verifyAndCheck = async () => {
+      // 1. Direct Stripe verification via server if sessionId is available
+      if (sessionId) {
+        try {
+          const verifyRes = await fetch(`/api/checkout/verify?session_id=${encodeURIComponent(sessionId)}`);
+          const verifyData = await verifyRes.json();
 
-    const checkEnrollment = async () => {
-      attempts++;
-      try {
-        const res = await fetch(`/api/enrollments/me?courseId=${courseId}`);
-        const data = await res.json();
+          if (verifyData.success && verifyData.paymentStatus === "Paid") {
+            if (!isSubscribed) return;
+            const targetCourseId = verifyData.courseId || initialCourseId;
+            if (targetCourseId) setCourseId(targetCourseId);
+            setStatus("success");
 
-        if (data.success && data.paymentStatus === "Paid") {
-          setStatus("success");
-          clearInterval(intervalId);
-
-          // Fetch first lesson if available
-          try {
-            const courseRes = await fetch(`/api/courses/${courseId}`);
-            const courseData = await courseRes.json();
-            if (courseData.success && courseData.course?.lessons?.length > 0) {
-              setFirstLessonId(courseData.course.lessons[0]._id);
+            if (targetCourseId) {
+              try {
+                const courseRes = await fetch(`/api/courses/${targetCourseId}`);
+                const courseData = await courseRes.json();
+                if (courseData.success && courseData.course?.lessons?.length > 0) {
+                  if (isSubscribed) setFirstLessonId(courseData.course.lessons[0]._id);
+                }
+              } catch (e) {
+                console.error("Failed to fetch course details for redirect", e);
+              }
             }
-          } catch (e) {
-            console.error("Failed to fetch course details for redirect", e);
+            return;
           }
-          return;
-        }
-
-        if (attempts >= maxAttempts) {
-          setStatus("timeout");
-          clearInterval(intervalId);
-        }
-      } catch (err: any) {
-        console.error("Error polling enrollment status:", err);
-        if (attempts >= maxAttempts) {
-          setStatus("timeout");
-          clearInterval(intervalId);
+        } catch (e) {
+          console.error("Direct session verification error:", e);
         }
       }
+
+      // 2. Fallback polling if verify endpoint didn't immediately confirm
+      const targetCourseId = courseId || initialCourseId;
+      if (!targetCourseId) {
+        if (isSubscribed) setStatus("success");
+        return;
+      }
+
+      let attempts = 0;
+      const maxAttempts = 6;
+      let intervalId: NodeJS.Timeout;
+
+      const checkEnrollment = async () => {
+        attempts++;
+        try {
+          const res = await fetch(`/api/enrollments/me?courseId=${targetCourseId}`);
+          const data = await res.json();
+
+          if (data.success && data.paymentStatus === "Paid") {
+            if (!isSubscribed) return;
+            setStatus("success");
+            clearInterval(intervalId);
+
+            try {
+              const courseRes = await fetch(`/api/courses/${targetCourseId}`);
+              const courseData = await courseRes.json();
+              if (courseData.success && courseData.course?.lessons?.length > 0) {
+                if (isSubscribed) setFirstLessonId(courseData.course.lessons[0]._id);
+              }
+            } catch (e) {
+              console.error("Failed to fetch course details for redirect", e);
+            }
+            return;
+          }
+
+          if (attempts >= maxAttempts) {
+            if (isSubscribed) setStatus("timeout");
+            clearInterval(intervalId);
+          }
+        } catch (err) {
+          console.error("Error polling enrollment status:", err);
+          if (attempts >= maxAttempts) {
+            if (isSubscribed) setStatus("timeout");
+            clearInterval(intervalId);
+          }
+        }
+      };
+
+      checkEnrollment();
+      intervalId = setInterval(checkEnrollment, 2000);
     };
 
-    // Initial check right away
-    checkEnrollment();
+    verifyAndCheck();
 
-    // Poll every 2 seconds
-    intervalId = setInterval(checkEnrollment, 2000);
-
-    return () => clearInterval(intervalId);
-  }, [courseId]);
+    return () => {
+      isSubscribed = false;
+    };
+  }, [sessionId, initialCourseId]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4">
