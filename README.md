@@ -31,7 +31,7 @@ An industrial-grade, full-stack Learning Management System built with **Next.js 
 | 11 | Admin Analytics | ✅ Completed | Revenue/enrollment/signup charts, top courses |
 | 12 | Search, Filters & Wishlist | ✅ Completed | Sort/paginate catalog, wishlist |
 | 13 | Student Dashboard | ✅ Completed | My Learning overview, purchase history, certificates list |
-| 14 | Transactional Email | ⏳ Upcoming | Order confirmation, welcome email |
+| 14 | Transactional Email | ✅ Completed | Order confirmation, welcome email |
 | 15 | Password Reset & Security | ⏳ Upcoming | Forgot/reset password flow |
 | 16 | Automated Testing | ⏳ Upcoming | Playwright e2e suite |
 | 17 | SEO, Performance & A11y | ⏳ Upcoming | Metadata, sitemap, Lighthouse pass |

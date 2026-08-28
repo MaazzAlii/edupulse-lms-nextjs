@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T17:09:05+05:00
-- Current part in progress: Part 13 — Student Dashboard Complete
-- Last part fully completed and verified: Part 13 — Student Dashboard
+- Last updated: 2026-08-28T17:11:25+05:00
+- Current part in progress: Part 14 — Transactional Email Complete
+- Last part fully completed and verified: Part 14 — Transactional Email
 
 ## Part-by-Part Log
 
@@ -92,6 +92,14 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `c6dc120`: feat(dashboard): unified student home with continue-learning, progress, and purchase history
 - Notes/deviations from spec: Unified dashboard summary API and student home base.
 
+### Part 14 — Transactional Email
+- Status: complete
+- Commits:
+  - `fba1599`: feat(email): resend client and html templates
+  - `7166947`: feat(auth): welcome email on registration
+  - `eef0a16`: feat(webhooks): order confirmation email on paid enrollment
+- Notes/deviations from spec: Non-blocking Resend client dispatcher with inline HTML templates for welcome and order receipt.
+
 ### Part 19 — Deployment to Vercel
 - Status: complete
 - Commits:
@@ -101,6 +109,7 @@ Update it after every meaningful sub-step — not just at the end of a part.
 ## Environment / Credentials Needed From User
 - `STRIPE_SECRET_KEY` (Stripe test secret key `sk_test_...` for live checkout testing)
 - `STRIPE_WEBHOOK_SECRET` (For local webhook signature verification with `stripe listen` or Vercel production webhook)
+- `RESEND_API_KEY` (Resend API key `re_...` for transactional email dispatching)
 
 ## Open Questions / Flags for the User
-- Next part in sequence: Part 14 (Transactional Email).
+- Next part in sequence: Part 15 (Password Reset & Account Security).
