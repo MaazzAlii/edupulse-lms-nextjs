@@ -5,6 +5,8 @@ import { getAuthUserFromRequest } from "@/lib/auth";
 import { hasPaidAccess } from "@/lib/enrollmentGuard";
 import Lesson from "@/models/Lesson";
 import Question from "@/models/Question";
+import User from "@/models/User";
+import Notification from "@/models/Notification";
 import { apiError, apiSuccess } from "@/lib/response";
 
 /**
@@ -46,7 +48,7 @@ export async function GET(
 
 /**
  * POST /api/lessons/[id]/questions
- * Post a new question for a lesson.
+ * Post a new question for a lesson and notify admin.
  * Body: { question: string }
  */
 export async function POST(
@@ -94,6 +96,19 @@ export async function POST(
       question: questionText.trim(),
       replies: [],
     });
+
+    // Notify all admin users of the new student question
+    const admins = await User.find({ role: "admin" });
+    if (admins.length > 0) {
+      await Notification.insertMany(
+        admins.map((adm) => ({
+          recipient: adm._id,
+          type: "new_question",
+          message: `${user.name} asked a question in Lesson #${lesson.order}: "${lesson.title}"`,
+          link: "/admin/questions",
+        }))
+      );
+    }
 
     const populatedQuestion = await Question.findById(newQuestion._id)
       .populate("user", "name")

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { connectDB } from "@/lib/db";
 import Enrollment from "@/models/Enrollment";
+import User from "@/models/User";
+import Course from "@/models/Course";
+import Notification from "@/models/Notification";
 import Stripe from "stripe";
 
 // Force Node.js runtime for raw request body parsing & crypto verification
@@ -82,6 +85,27 @@ export async function POST(req: NextRequest) {
         },
         { upsert: true, new: true }
       );
+
+      // Notify all admin users of the new paid course enrollment
+      const [buyerUser, courseDoc, adminUsers] = await Promise.all([
+        User.findById(userId),
+        Course.findById(courseId),
+        User.find({ role: "admin" }),
+      ]);
+
+      if (adminUsers.length > 0) {
+        const buyerName = buyerUser ? buyerUser.name : "A student";
+        const courseTitle = courseDoc ? courseDoc.title : "a course";
+
+        await Notification.insertMany(
+          adminUsers.map((adm) => ({
+            recipient: adm._id,
+            type: "new_enrollment",
+            message: `${buyerName} enrolled in "${courseTitle}" ($${amountTotal.toFixed(2)})`,
+            link: "/admin",
+          }))
+        );
+      }
 
       console.log(
         `✅ Successfully processed payment for user ${userId} on course ${courseId}. Enrollment ID: ${updatedEnrollment._id}`
