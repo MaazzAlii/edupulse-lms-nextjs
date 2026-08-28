@@ -54,6 +54,19 @@ export default function Navbar() {
             >
               Courses
             </Link>
+            {isAuthenticated && (
+              <Link
+                href="/my-courses"
+                className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                  isActive("/my-courses")
+                    ? "bg-primary-tint text-primary font-semibold"
+                    : "text-muted hover:text-foreground hover:bg-black/5"
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                My Courses
+              </Link>
+            )}
             <Link
               href="/dashboard"
               className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
