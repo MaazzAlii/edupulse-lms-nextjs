@@ -11,6 +11,7 @@ import {
   BookOpen,
   Users,
   MessageSquare,
+  TrendingUp,
   ArrowLeft,
   GraduationCap,
   PlusCircle,
@@ -51,6 +52,12 @@ export default function AdminLayout({
       href: "/admin",
       icon: LayoutDashboard,
       exact: true,
+    },
+    {
+      label: "Analytics",
+      href: "/admin/analytics",
+      icon: TrendingUp,
+      exact: false,
     },
     {
       label: "Categories",

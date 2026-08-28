@@ -99,6 +99,14 @@ export default function AdminOverviewPage() {
 
         <div className="flex items-center gap-2.5">
           <Link
+            href="/admin/analytics"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all shadow-sm"
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>Revenue Analytics</span>
+          </Link>
+
+          <Link
             href="/admin/users"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-surface border border-border text-foreground hover:bg-black/5 transition-all shadow-sm"
           >
