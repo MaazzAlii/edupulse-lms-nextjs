@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import Lesson from "@/models/Lesson";
 import { getAuthUserFromRequest } from "@/lib/auth";
 import { requireAdmin } from "@/lib/adminGuard";
+import { hasPaidAccess } from "@/lib/enrollmentGuard";
 import { apiError, apiSuccess } from "@/lib/response";
 
 export async function GET(
@@ -25,10 +26,14 @@ export async function GET(
     }
 
     const authUser = await getAuthUserFromRequest(req);
-    const isAdmin = authUser?.role === "admin";
+    const courseId = lesson.course?._id || lesson.course;
+
+    const userHasAccess = authUser
+      ? await hasPaidAccess(authUser._id, courseId, authUser.role)
+      : false;
 
     const lessonObj = lesson.toObject();
-    if (!isAdmin && !lessonObj.isPreview) {
+    if (!userHasAccess && !lessonObj.isPreview) {
       lessonObj.videoUrl = "";
     }
 

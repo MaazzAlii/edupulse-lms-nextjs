@@ -5,6 +5,7 @@ import Course from "@/models/Course";
 import Lesson from "@/models/Lesson";
 import { getAuthUserFromRequest } from "@/lib/auth";
 import { requireAdmin } from "@/lib/adminGuard";
+import { hasPaidAccess } from "@/lib/enrollmentGuard";
 import { apiError, apiSuccess } from "@/lib/response";
 import { uploadVideo, VideoUploadError } from "@/lib/videoUpload";
 
@@ -34,12 +35,16 @@ export async function GET(
       return apiError("Course not found", 404);
     }
 
+    const userHasAccess = authUser
+      ? await hasPaidAccess(authUser._id, id, authUser.role)
+      : false;
+
     const rawLessons = await Lesson.find({ course: id }).sort({ order: 1 });
 
-    // Sanitize videoUrl for non-admins if isPreview is false
+    // Sanitize videoUrl unless user has paid access, is admin, or lesson is preview
     const lessons = rawLessons.map((lesson) => {
       const lessonObj = lesson.toObject();
-      if (!isAdmin && !lessonObj.isPreview) {
+      if (!userHasAccess && !lessonObj.isPreview) {
         lessonObj.videoUrl = "";
       }
       return lessonObj;

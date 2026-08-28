@@ -16,6 +16,7 @@ import {
   Loader2,
   CheckCircle2,
   ShieldAlert,
+  CreditCard,
 } from "lucide-react";
 
 interface CourseInfo {
@@ -23,6 +24,7 @@ interface CourseInfo {
   title: string;
   slug: string;
   instructor: string;
+  price: number;
 }
 
 interface LessonItem {
@@ -136,7 +138,7 @@ export default function LessonPlayerPage({
   const nextLesson =
     currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
 
-  // Gating rule: lesson has a non-empty videoUrl
+  // Gating rule: lesson has a non-empty videoUrl returned by backend guard
   const isPlayable = Boolean(currentLesson.videoUrl && currentLesson.videoUrl.trim().length > 0);
 
   return (
@@ -226,26 +228,26 @@ export default function LessonPlayerPage({
                   </video>
                 </div>
               ) : (
-                /* Locked State Placeholder (No empty video tag) */
-                <div className="rounded-xl bg-gradient-to-b from-surface to-background border border-border p-8 sm:p-12 text-center aspect-video flex flex-col items-center justify-center">
-                  <div className="w-16 h-16 rounded-3xl bg-gold-tint text-gold flex items-center justify-center mb-4 shadow-md shadow-gold/10">
+                /* Locked State Placeholder */
+                <div className="rounded-xl bg-gradient-to-b from-surface via-slate-900 to-background border border-border p-8 sm:p-12 text-center aspect-video flex flex-col items-center justify-center">
+                  <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-4 shadow-md shadow-amber-500/10">
                     <Lock className="w-8 h-8" />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-gold mb-1">
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-1">
                     Enrolled Students Only
                   </span>
-                  <h2 className="text-xl sm:text-2xl font-black text-foreground mb-2">
-                    This lesson unlocks after enrollment (Part 4)
+                  <h2 className="text-xl sm:text-2xl font-black text-white mb-2">
+                    This lesson is locked
                   </h2>
-                  <p className="text-xs sm:text-sm text-muted max-w-md mx-auto leading-relaxed mb-6">
-                    You are viewing a protected lesson. Full streaming access and learning resources unlock upon course enrollment.
+                  <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed mb-6">
+                    Full video streaming access and learning resources for Lesson #{currentLesson.order} unlock immediately upon course enrollment.
                   </p>
                   <Link
                     href={`/courses/${courseId}`}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-primary hover:bg-primary-dark text-white shadow-md shadow-primary/20 transition-all"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 transition-all"
                   >
-                    <BookOpen className="w-4 h-4 text-gold" />
-                    <span>View Course Details</span>
+                    <CreditCard className="w-4 h-4" />
+                    <span>Enroll Now to Unlock Course ({course.price === 0 ? "Free" : `$${course.price.toFixed(2)}`})</span>
                   </Link>
                 </div>
               )}
