@@ -12,6 +12,7 @@ import {
   TrendingUp,
   ShieldCheck,
   Eye,
+  Users,
 } from "lucide-react";
 
 interface Category {
@@ -38,25 +39,31 @@ interface Course {
 export default function AdminOverviewPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [totalUsers, setTotalUsers] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
-        const [courseRes, catRes] = await Promise.all([
+        const [courseRes, catRes, userRes] = await Promise.all([
           fetch("/api/admin/courses"),
           fetch("/api/categories"),
+          fetch("/api/admin/users?limit=1"),
         ]);
 
         const courseData = await courseRes.json();
         const catData = await catRes.json();
+        const userData = await userRes.json();
 
         if (courseData.success && Array.isArray(courseData.courses)) {
           setCourses(courseData.courses);
         }
         if (catData.success && Array.isArray(catData.categories)) {
           setCategories(catData.categories);
+        }
+        if (userData.success && typeof userData.total === "number") {
+          setTotalUsers(userData.total);
         }
       } catch (err) {
         console.error("Failed to load admin overview:", err);
@@ -86,17 +93,17 @@ export default function AdminOverviewPage() {
             Dashboard & Metrics
           </h1>
           <p className="text-xs sm:text-sm text-muted mt-1">
-            Monitor learning content, catalog status, and course taxonomies.
+            Monitor learning content, catalog status, users, and course taxonomies.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
           <Link
-            href="/admin/categories"
+            href="/admin/users"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-surface border border-border text-foreground hover:bg-black/5 transition-all shadow-sm"
           >
-            <FolderTree className="w-3.5 h-3.5 text-primary" />
-            <span>Manage Categories</span>
+            <Users className="w-3.5 h-3.5 text-primary" />
+            <span>Manage Users</span>
           </Link>
 
           <Link
@@ -109,8 +116,24 @@ export default function AdminOverviewPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Total Users */}
+        <div className="card-surface p-5 card-surface-hover">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+              Total Users
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+              <Users className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
+            {loading ? "..." : totalUsers}
+          </div>
+          <p className="text-[11px] text-muted mt-1">Students & Admins</p>
+        </div>
+
         {/* Total Courses */}
         <div className="card-surface p-5 card-surface-hover">
           <div className="flex items-center justify-between mb-3">

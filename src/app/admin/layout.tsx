@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   FolderTree,
   BookOpen,
+  Users,
   ArrowLeft,
   GraduationCap,
   PlusCircle,
@@ -60,6 +61,12 @@ export default function AdminLayout({
       label: "Courses",
       href: "/admin/courses",
       icon: BookOpen,
+      exact: false,
+    },
+    {
+      label: "Users",
+      href: "/admin/users",
+      icon: Users,
       exact: false,
     },
   ];
