@@ -44,8 +44,14 @@ export async function POST(req: NextRequest) {
       user.resetPasswordExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
       await user.save();
 
+      const reqHost = req.headers.get("x-forwarded-host") || req.headers.get("host");
+      const reqProto = req.headers.get("x-forwarded-proto") || "https";
+      const requestOrigin = reqHost ? `${reqProto}://${reqHost}` : req.nextUrl.origin;
+
       const baseUrl =
-        process.env.NEXT_PUBLIC_APP_URL || "https://edupulse.vercel.app";
+        process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
+          ? process.env.NEXT_PUBLIC_APP_URL
+          : requestOrigin || "http://localhost:3000";
       const resetUrl = `${baseUrl}/reset-password/${rawToken}`;
 
       // Dispatch password reset email (non-blocking)
