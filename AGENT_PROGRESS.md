@@ -4,9 +4,9 @@ Read this file first, every session, before doing anything else.
 Update it after every meaningful sub-step — not just at the end of a part.
 
 ## Status Summary
-- Last updated: 2026-08-28T16:47:40+05:00
-- Current part in progress: Part 6 — Progress Tracking & Certificates Complete
-- Last part fully completed and verified: Part 6 — Progress Tracking & Certificates
+- Last updated: 2026-08-28T16:50:55+05:00
+- Current part in progress: Part 7 — Reviews & Ratings Complete
+- Last part fully completed and verified: Part 7 — Reviews & Ratings
 
 ## Part-by-Part Log
 
@@ -35,6 +35,14 @@ Update it after every meaningful sub-step — not just at the end of a part.
   - `2943316`: feat(certificate): printable completion certificate page
 - Notes/deviations from spec: Full-bleed landscape certificate layout with print-to-PDF styles and access guard.
 
+### Part 7 — Reviews & Ratings
+- Status: complete
+- Commits:
+  - `61129c4`: feat(schema): Review model and Course rating fields
+  - `b85c075`: feat(api): review crud with rating recalculation
+  - `c526696`: feat(course-detail): reviews section and submission form
+- Notes/deviations from spec: Synchronous rating recalculation helper on Course document.
+
 ### Part 10 — Admin User Management
 - Status: complete
 - Commits:
@@ -55,4 +63,4 @@ Update it after every meaningful sub-step — not just at the end of a part.
 - `STRIPE_WEBHOOK_SECRET` (For local webhook signature verification with `stripe listen` or Vercel production webhook)
 
 ## Open Questions / Flags for the User
-- Next part in sequence: Part 7 (Reviews & Ratings).
+- Next part in sequence: Part 8 (Q&A / Discussions).

@@ -24,7 +24,7 @@ An industrial-grade, full-stack Learning Management System built with **Next.js 
 | 4 | Payments & Checkout | ✅ Completed | Stripe Checkout Sessions, success/cancel pages, free-course bypass, checkout API |
 | 5 | Enrollment Engine | ✅ Completed | Webhook completes purchase, purchase guard on lessons, "My Courses" |
 | 6 | Progress & Certificates | ✅ Completed | Lesson completion tracking, progress bar, printable certificate |
-| 7 | Reviews & Ratings | ⏳ Upcoming | Star ratings, average rating, admin reply |
+| 7 | Reviews & Ratings | ✅ Completed | Star ratings, average rating, admin reply |
 | 8 | Q&A / Discussions | ⏳ Upcoming | Per-lesson questions, threaded replies |
 | 9 | Notifications | ⏳ Upcoming | In-app notification center, cron cleanup |
 | 10 | Admin User Management | ✅ Completed | Search/paginate users, role promote/demote, suspend |
