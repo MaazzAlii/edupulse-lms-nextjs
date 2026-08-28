@@ -49,8 +49,15 @@ export async function POST(req: NextRequest) {
       return apiError("You already own this course.", 400);
     }
 
-    // Determine absolute application base URL for redirects
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    // Determine absolute application base URL for redirects (supports dynamic Vercel host & NEXT_PUBLIC_APP_URL)
+    const reqHost = req.headers.get("x-forwarded-host") || req.headers.get("host");
+    const reqProto = req.headers.get("x-forwarded-proto") || "https";
+    const requestOrigin = reqHost ? `${reqProto}://${reqHost}` : req.nextUrl.origin;
+
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
+        ? process.env.NEXT_PUBLIC_APP_URL
+        : requestOrigin || "http://localhost:3000";
 
     // 5. Handle Free Course (price === 0): Skip Stripe
     if (course.price === 0) {
