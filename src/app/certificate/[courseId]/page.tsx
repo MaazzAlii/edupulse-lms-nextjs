@@ -4,7 +4,6 @@ import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import Navbar from "@/components/Navbar";
 import {
   Award,
   Printer,
@@ -142,7 +141,6 @@ export default function CourseCertificatePage({
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <div className="max-w-4xl mx-auto px-4 py-24 flex flex-col items-center justify-center">
           <Loader2 className="w-10 h-10 text-primary animate-spin mb-3" />
           <p className="text-sm font-medium text-muted">
@@ -156,7 +154,6 @@ export default function CourseCertificatePage({
   if (error || !course || !enrollment || !user) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <div className="max-w-md mx-auto px-4 py-16 text-center">
           <div className="card-surface p-8">
             <AlertCircle className="w-10 h-10 text-red mx-auto mb-3" />
@@ -188,10 +185,6 @@ export default function CourseCertificatePage({
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Print Hide Navbar Wrapper */}
-      <div className="print:hidden">
-        <Navbar />
-      </div>
 
       {/* Control Header Bar */}
       <div className="print:hidden bg-slate-900 border-b border-slate-800 py-4 px-4 sm:px-8 flex items-center justify-between">

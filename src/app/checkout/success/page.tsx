@@ -3,7 +3,6 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import { CheckCircle2, Loader2, AlertCircle, PlayCircle, ArrowRight } from "lucide-react";
 
 function CheckoutSuccessContent() {
@@ -158,15 +157,12 @@ function CheckoutSuccessContent() {
 
 export default function CheckoutSuccessPage() {
   return (
-    <>
-      <Navbar />
-      <Suspense fallback={
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-          <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-        </div>
-      }>
-        <CheckoutSuccessContent />
-      </Suspense>
-    </>
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+      </div>
+    }>
+      <CheckoutSuccessContent />
+    </Suspense>
   );
 }

@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import Navbar from "@/components/Navbar";
 import {
   GraduationCap,
   PlayCircle,
@@ -12,8 +11,6 @@ import {
   ArrowRight,
   Loader2,
   Calendar,
-  Layers,
-  Sparkles,
   Award,
 } from "lucide-react";
 import { computeProgress } from "@/lib/progress";
@@ -107,7 +104,6 @@ export default function MyCoursesPage() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <div className="max-w-6xl mx-auto px-4 py-20 flex flex-col items-center justify-center">
           <Loader2 className="w-10 h-10 text-primary animate-spin mb-3" />
           <p className="text-sm font-medium text-muted">Loading your enrolled courses...</p>
@@ -118,8 +114,6 @@ export default function MyCoursesPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <Navbar />
-
       {/* Header Banner */}
       <section className="bg-gradient-to-b from-primary-tint/40 via-surface to-background border-b border-border py-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
