@@ -24,6 +24,11 @@ export async function POST(req: NextRequest) {
       return apiError("Invalid email or password", 401);
     }
 
+    // Check if account is suspended
+    if (user.isActive === false) {
+      return apiError("Your account has been suspended — contact support", 403);
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return apiError("Invalid email or password", 401);
@@ -39,6 +44,7 @@ export async function POST(req: NextRequest) {
       name: user.name,
       email: user.email,
       role: user.role,
+      isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

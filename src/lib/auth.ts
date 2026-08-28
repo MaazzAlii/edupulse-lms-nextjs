@@ -9,6 +9,7 @@ export const AUTH_COOKIE = "lms_token";
 /**
  * For use inside Route Handlers. Reads cookie from NextRequest,
  * verifies token, and retrieves the User document from DB.
+ * Returns null if user is not found or is suspended (isActive === false).
  */
 export async function getAuthUserFromRequest(
   req: NextRequest
@@ -22,6 +23,8 @@ export async function getAuthUserFromRequest(
 
     await connectDB();
     const user = await User.findById(decoded.id).select("-password");
+    if (!user || user.isActive === false) return null;
+
     return user;
   } catch {
     return null;
@@ -31,6 +34,7 @@ export async function getAuthUserFromRequest(
 /**
  * For use inside Server Components and Server Actions.
  * In Next.js 15, cookies() is asynchronous.
+ * Returns null if user is not found or is suspended (isActive === false).
  */
 export async function getServerUser(): Promise<IUser | null> {
   try {
@@ -43,6 +47,8 @@ export async function getServerUser(): Promise<IUser | null> {
 
     await connectDB();
     const user = await User.findById(decoded.id).select("-password");
+    if (!user || user.isActive === false) return null;
+
     return user;
   } catch {
     return null;
