@@ -35,6 +35,7 @@ export async function GET(
     const lessonObj = lesson.toObject();
     if (!userHasAccess && !lessonObj.isPreview) {
       lessonObj.videoUrl = "";
+      lessonObj.youtubeVideoId = "";
     }
 
     return apiSuccess({ lesson: lessonObj });
@@ -77,6 +78,18 @@ export async function PUT(
 
     if (body.isPreview !== undefined) {
       updateData.isPreview = Boolean(body.isPreview);
+    }
+
+    if (body.videoProvider !== undefined) {
+      updateData.videoProvider = body.videoProvider;
+    }
+
+    if (body.youtubeVideoId !== undefined) {
+      updateData.youtubeVideoId = body.youtubeVideoId;
+    }
+
+    if (body.videoUrl !== undefined) {
+      updateData.videoUrl = body.videoUrl;
     }
 
     await connectDB();

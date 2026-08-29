@@ -5,6 +5,7 @@ import Lesson from "@/models/Lesson";
 import { requireAdmin } from "@/lib/adminGuard";
 import { apiError, apiSuccess } from "@/lib/response";
 import { uploadVideo, VideoUploadError } from "@/lib/videoUpload";
+import { extractVideoId } from "@/lib/youtube";
 
 export async function PUT(
   req: NextRequest,
@@ -51,7 +52,16 @@ export async function PUT(
       }
     }
 
+    const extractedYtId = extractVideoId(finalVideoUrl);
     lesson.videoUrl = finalVideoUrl;
+    if (extractedYtId) {
+      lesson.videoProvider = "youtube";
+      lesson.youtubeVideoId = extractedYtId;
+    } else {
+      lesson.videoProvider = "upload";
+      lesson.youtubeVideoId = "";
+    }
+
     await lesson.save();
 
     return apiSuccess({

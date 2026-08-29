@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/adminGuard";
 import { hasPaidAccess } from "@/lib/enrollmentGuard";
 import { apiError, apiSuccess } from "@/lib/response";
 import { uploadVideo, VideoUploadError } from "@/lib/videoUpload";
+import { extractVideoId } from "@/lib/youtube";
 
 export async function GET(
   req: NextRequest,
@@ -41,11 +42,12 @@ export async function GET(
 
     const rawLessons = await Lesson.find({ course: id }).sort({ order: 1 });
 
-    // Sanitize videoUrl unless user has paid access, is admin, or lesson is preview
+    // Sanitize videoUrl & youtubeVideoId unless user has paid access, is admin, or lesson is preview
     const lessons = rawLessons.map((lesson) => {
       const lessonObj = lesson.toObject();
       if (!userHasAccess && !lessonObj.isPreview) {
         lessonObj.videoUrl = "";
+        lessonObj.youtubeVideoId = "";
       }
       return lessonObj;
     });
@@ -122,12 +124,18 @@ export async function POST(
 
     const isPreview = isPreviewStr === "true" || isPreviewStr === "1";
 
+    const extractedYtId = extractVideoId(finalVideoUrl);
+    const videoProvider = extractedYtId ? "youtube" : "upload";
+    const youtubeVideoId = extractedYtId || "";
+
     const lesson = await Lesson.create({
       course: course._id,
       title: title.trim(),
       order,
       isPreview,
       videoUrl: finalVideoUrl,
+      videoProvider,
+      youtubeVideoId,
       durationSeconds: 0,
     });
 
