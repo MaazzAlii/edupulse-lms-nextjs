@@ -26,6 +26,8 @@ import {
   CornerDownRight,
 } from "lucide-react";
 import { computeProgress } from "@/lib/progress";
+import YouTubePlayer from "@/components/YouTubePlayer";
+import { extractVideoId } from "@/lib/youtube";
 
 interface CourseInfo {
   _id: string;
@@ -41,6 +43,8 @@ interface LessonItem {
   title: string;
   order: number;
   videoUrl?: string;
+  videoProvider?: "upload" | "youtube";
+  youtubeVideoId?: string;
   durationSeconds: number;
   isPreview: boolean;
 }
@@ -238,6 +242,32 @@ export default function LessonPlayerPage({
     }
   };
 
+  // Auto mark lesson as complete when YouTube video finishes playing
+  const handleAutoMarkComplete = async () => {
+    if (!currentLesson || !isEnrolled) return;
+    if (completedLessonIds.includes(currentLesson._id)) return;
+
+    try {
+      const res = await fetch(`/api/courses/${courseId}/progress`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lessonId: currentLesson._id,
+          completed: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCompletedLessonIds((prev) =>
+          prev.includes(currentLesson._id) ? prev : [...prev, currentLesson._id]
+        );
+      }
+    } catch (e) {
+      console.error("Auto mark complete failed:", e);
+    }
+  };
+
   // Submit Q&A Question
   const handleQuestionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -354,8 +384,13 @@ export default function LessonPlayerPage({
   const nextLesson =
     currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
 
-  // Gating rule: lesson has a non-empty videoUrl returned by backend guard
-  const isPlayable = Boolean(currentLesson.videoUrl && currentLesson.videoUrl.trim().length > 0);
+  // Gating rule: lesson has a non-empty videoUrl or youtubeVideoId returned by backend guard
+  const youtubeVideoId =
+    currentLesson.youtubeVideoId || extractVideoId(currentLesson.videoUrl || "");
+  const isPlayable = Boolean(
+    youtubeVideoId ||
+    (currentLesson.videoUrl && currentLesson.videoUrl.trim().length > 0)
+  );
 
   // Compute overall progress
   const progressPercent = computeProgress(completedLessonIds.length, lessons.length);
@@ -464,16 +499,14 @@ export default function LessonPlayerPage({
 
             <div className="card-surface overflow-hidden p-2 sm:p-3 shadow-lg">
               {isPlayable ? (
-                <div className="rounded-xl overflow-hidden bg-black shadow-2xl relative aspect-video flex items-center justify-center">
-                  {currentLesson.videoUrl && getYouTubeEmbedUrl(currentLesson.videoUrl) ? (
-                    <iframe
-                      className="w-full h-full object-contain border-0"
-                      src={getYouTubeEmbedUrl(currentLesson.videoUrl) || ""}
-                      title={currentLesson.title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
-                  ) : (
+                youtubeVideoId ? (
+                  <YouTubePlayer
+                    videoId={youtubeVideoId}
+                    title={currentLesson.title}
+                    onEnded={handleAutoMarkComplete}
+                  />
+                ) : (
+                  <div className="rounded-xl overflow-hidden bg-black shadow-2xl relative aspect-video flex items-center justify-center">
                     <video
                       controls
                       autoPlay
@@ -483,8 +516,8 @@ export default function LessonPlayerPage({
                     >
                       Your browser does not support HTML5 video streaming.
                     </video>
-                  )}
-                </div>
+                  </div>
+                )
               ) : (
                 /* Locked State Placeholder */
                 <div className="rounded-xl bg-gradient-to-b from-surface via-slate-900 to-background border border-border p-8 sm:p-12 text-center aspect-video flex flex-col items-center justify-center">
