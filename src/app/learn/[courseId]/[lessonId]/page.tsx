@@ -80,6 +80,18 @@ function getRelativeTime(dateString: string): string {
   return date.toLocaleDateString();
 }
 
+function getYouTubeEmbedUrl(url?: string): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+
+  if (match && match[2].length === 11) {
+    const videoId = match[2];
+    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&modestbranding=1&rel=0`;
+  }
+  return null;
+}
+
 export default function LessonPlayerPage({
   params,
 }: {
@@ -453,15 +465,25 @@ export default function LessonPlayerPage({
             <div className="card-surface overflow-hidden p-2 sm:p-3 shadow-lg">
               {isPlayable ? (
                 <div className="rounded-xl overflow-hidden bg-black shadow-2xl relative aspect-video flex items-center justify-center">
-                  <video
-                    controls
-                    autoPlay
-                    playsInline
-                    className="w-full h-full object-contain"
-                    src={currentLesson.videoUrl}
-                  >
-                    Your browser does not support HTML5 video streaming.
-                  </video>
+                  {currentLesson.videoUrl && getYouTubeEmbedUrl(currentLesson.videoUrl) ? (
+                    <iframe
+                      className="w-full h-full object-contain border-0"
+                      src={getYouTubeEmbedUrl(currentLesson.videoUrl) || ""}
+                      title={currentLesson.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      controls
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-contain"
+                      src={currentLesson.videoUrl}
+                    >
+                      Your browser does not support HTML5 video streaming.
+                    </video>
+                  )}
                 </div>
               ) : (
                 /* Locked State Placeholder */
