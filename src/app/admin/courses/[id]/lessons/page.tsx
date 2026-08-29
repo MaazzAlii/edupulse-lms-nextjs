@@ -57,6 +57,18 @@ interface EditLessonFormData {
   isPreview: boolean;
 }
 
+function getYouTubeEmbedUrl(url?: string): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+
+  if (match && match[2].length === 11) {
+    const videoId = match[2];
+    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&modestbranding=1&rel=0`;
+  }
+  return null;
+}
+
 export default function AdminCourseLessonsPage({
   params,
 }: {
@@ -68,6 +80,12 @@ export default function AdminCourseLessonsPage({
   const [course, setCourse] = useState<CourseInfo | null>(null);
   const [lessons, setLessons] = useState<LessonItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+
+  const [videoSourceType, setVideoSourceType] = useState<"file" | "url">("file");
+  const [newLessonUrl, setNewLessonUrl] = useState<string>("");
+
+  const [replaceSourceType, setReplaceSourceType] = useState<"file" | "url">("file");
+  const [replaceVideoUrl, setReplaceVideoUrl] = useState<string>("");
 
   // Status alerts
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -153,22 +171,29 @@ export default function AdminCourseLessonsPage({
       return;
     }
 
-    if (!newLessonData.videoFile) {
-      setErrorMessage("Please select a video file (MP4, WebM, or QuickTime).");
-      return;
-    }
+    if (videoSourceType === "file") {
+      if (!newLessonData.videoFile) {
+        setErrorMessage("Please select a video file (MP4, WebM, or QuickTime).");
+        return;
+      }
 
-    // Client-side quick checks
-    const allowedTypes = ["video/mp4", "video/webm", "video/quicktime"];
-    if (!allowedTypes.includes(newLessonData.videoFile.type)) {
-      setErrorMessage("Invalid file format. Please upload an MP4, WebM, or QuickTime video.");
-      return;
-    }
+      // Client-side quick checks
+      const allowedTypes = ["video/mp4", "video/webm", "video/quicktime"];
+      if (!allowedTypes.includes(newLessonData.videoFile.type)) {
+        setErrorMessage("Invalid file format. Please upload an MP4, WebM, or QuickTime video.");
+        return;
+      }
 
-    if (newLessonData.videoFile.size > 200 * 1024 * 1024) {
-      const sizeMB = (newLessonData.videoFile.size / (1024 * 1024)).toFixed(2);
-      setErrorMessage(`Video size (${sizeMB}MB) exceeds 200MB maximum limit.`);
-      return;
+      if (newLessonData.videoFile.size > 200 * 1024 * 1024) {
+        const sizeMB = (newLessonData.videoFile.size / (1024 * 1024)).toFixed(2);
+        setErrorMessage(`Video size (${sizeMB}MB) exceeds 200MB maximum limit.`);
+        return;
+      }
+    } else {
+      if (!newLessonUrl.trim()) {
+        setErrorMessage("Please enter a valid video URL.");
+        return;
+      }
     }
 
     try {
@@ -180,7 +205,12 @@ export default function AdminCourseLessonsPage({
       formData.append("title", newLessonData.title.trim());
       formData.append("order", String(newLessonData.order || 1));
       formData.append("isPreview", String(newLessonData.isPreview));
-      formData.append("video", newLessonData.videoFile);
+
+      if (videoSourceType === "file" && newLessonData.videoFile) {
+        formData.append("video", newLessonData.videoFile);
+      } else {
+        formData.append("videoUrl", newLessonUrl.trim());
+      }
 
       const res = await fetch(`/api/courses/${courseId}/lessons`, {
         method: "POST",
@@ -190,11 +220,11 @@ export default function AdminCourseLessonsPage({
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setErrorMessage(data.message || "Failed to upload video and create lesson.");
+        setErrorMessage(data.message || "Failed to create lesson.");
         return;
       }
 
-      setSuccessMessage(`Lesson "${data.lesson.title}" uploaded & created successfully!`);
+      setSuccessMessage(`Lesson "${data.lesson.title}" created successfully!`);
 
       // Reset form
       const nextOrder = (Number(newLessonData.order) || 1) + 1;
@@ -204,6 +234,8 @@ export default function AdminCourseLessonsPage({
         isPreview: false,
         videoFile: null,
       });
+      setNewLessonUrl("");
+      setVideoSourceType("file");
 
       // Clear file input element
       const fileInput = document.getElementById("lesson-video-file-input") as HTMLInputElement;
@@ -211,7 +243,7 @@ export default function AdminCourseLessonsPage({
 
       await fetchCourseAndLessons();
     } catch (err: any) {
-      setErrorMessage(err.message || "An unexpected error occurred during video upload.");
+      setErrorMessage(err.message || "An unexpected error occurred during lesson creation.");
     } finally {
       setIsUploading(false);
     }
@@ -273,13 +305,22 @@ export default function AdminCourseLessonsPage({
   const openReplaceVideoModal = (lesson: LessonItem) => {
     setReplacingLesson(lesson);
     setReplaceVideoFile(null);
+    setReplaceVideoUrl("");
+    setReplaceSourceType("file");
     setErrorMessage(null);
   };
 
   const handleReplaceVideoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replacingLesson || !replaceVideoFile) {
+    if (!replacingLesson) return;
+
+    if (replaceSourceType === "file" && !replaceVideoFile) {
       setErrorMessage("Please select a new video file.");
+      return;
+    }
+
+    if (replaceSourceType === "url" && !replaceVideoUrl.trim()) {
+      setErrorMessage("Please enter a valid video URL.");
       return;
     }
 
@@ -289,7 +330,11 @@ export default function AdminCourseLessonsPage({
       setSuccessMessage(null);
 
       const formData = new FormData();
-      formData.append("video", replaceVideoFile);
+      if (replaceSourceType === "file" && replaceVideoFile) {
+        formData.append("video", replaceVideoFile);
+      } else {
+        formData.append("videoUrl", replaceVideoUrl.trim());
+      }
 
       const res = await fetch(`/api/lessons/${replacingLesson._id}/video`, {
         method: "PUT",
@@ -306,9 +351,11 @@ export default function AdminCourseLessonsPage({
       setSuccessMessage(`Video for "${replacingLesson.title}" replaced successfully!`);
       setReplacingLesson(null);
       setReplaceVideoFile(null);
+      setReplaceVideoUrl("");
+      setReplaceSourceType("file");
       await fetchCourseAndLessons();
     } catch (err: any) {
-      setErrorMessage(err.message || "An error occurred while uploading new video.");
+      setErrorMessage(err.message || "An error occurred while replacing video.");
     } finally {
       setIsReplacingVideo(false);
     }
@@ -508,60 +555,115 @@ export default function AdminCourseLessonsPage({
                 </div>
               </div>
 
-              {/* Video File Picker */}
+              {/* Video Source Selection Toggle */}
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1">
-                  Video File (MP4, WebM, QuickTime, max 200MB) <span className="text-red">*</span>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Video Source
                 </label>
-                <div className="border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary/50 transition-colors bg-background/50">
-                  <input
-                    id="lesson-video-file-input"
-                    type="file"
-                    accept="video/mp4,video/webm,video/quicktime"
-                    required
+                <div className="flex rounded-xl bg-background p-1 border border-border mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setVideoSourceType("file")}
                     disabled={isUploading}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] || null;
-                      setNewLessonData({ ...newLessonData, videoFile: file });
-                    }}
-                    className="hidden"
-                  />
-                  <label
-                    htmlFor="lesson-video-file-input"
-                    className="cursor-pointer flex flex-col items-center gap-2"
+                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                      videoSourceType === "file"
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-muted hover:text-foreground"
+                    }`}
                   >
-                    <div className="w-10 h-10 rounded-full bg-primary-tint text-primary flex items-center justify-center">
-                      <Upload className="w-5 h-5" />
-                    </div>
-                    {newLessonData.videoFile ? (
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold text-foreground truncate max-w-[220px]">
-                          {newLessonData.videoFile.name}
-                        </p>
-                        <p className="text-[10px] text-muted">
-                          {(newLessonData.videoFile.size / (1024 * 1024)).toFixed(2)} MB • Ready to upload
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-xs font-semibold text-foreground">
-                          Click to select video file
-                        </p>
-                        <p className="text-[10px] text-muted mt-0.5">
-                          MP4, WebM or MOV up to 200MB
-                        </p>
-                      </div>
-                    )}
-                  </label>
+                    Upload File
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideoSourceType("url")}
+                    disabled={isUploading}
+                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                      videoSourceType === "url"
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-muted hover:text-foreground"
+                    }`}
+                  >
+                    YouTube / URL
+                  </button>
                 </div>
               </div>
+
+              {/* Video Input Conditionally Rendered */}
+              {videoSourceType === "file" ? (
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Video File (MP4, WebM, QuickTime, max 200MB) <span className="text-red">*</span>
+                  </label>
+                  <div className="border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary/50 transition-colors bg-background/50">
+                    <input
+                      id="lesson-video-file-input"
+                      type="file"
+                      accept="video/mp4,video/webm,video/quicktime"
+                      required={videoSourceType === "file"}
+                      disabled={isUploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setNewLessonData({ ...newLessonData, videoFile: file });
+                      }}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="lesson-video-file-input"
+                      className="cursor-pointer flex flex-col items-center gap-2"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-primary-tint text-primary flex items-center justify-center">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      {newLessonData.videoFile ? (
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-foreground truncate max-w-[220px]">
+                            {newLessonData.videoFile.name}
+                          </p>
+                          <p className="text-[10px] text-muted">
+                            {(newLessonData.videoFile.size / (1024 * 1024)).toFixed(2)} MB • Ready to upload
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-semibold text-foreground">
+                            Click to select video file
+                          </p>
+                          <p className="text-[10px] text-muted mt-0.5">
+                            MP4, WebM or MOV up to 200MB
+                          </p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Video URL (YouTube or raw video link) <span className="text-red">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newLessonUrl}
+                    onChange={(e) => setNewLessonUrl(e.target.value)}
+                    placeholder="e.g. https://www.youtube.com/watch?v=..."
+                    required={videoSourceType === "url"}
+                    disabled={isUploading}
+                    className="w-full px-3 py-2 rounded-xl bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-50"
+                  />
+                  <p className="text-[10px] text-muted mt-1">
+                    Enter any public YouTube link or direct video address.
+                  </p>
+                </div>
+              )}
 
               {/* Upload Progress Feedback Banner */}
               {isUploading && (
                 <div className="p-3.5 rounded-xl bg-primary-tint text-primary border border-primary/20 flex items-center gap-3 text-xs animate-pulse">
                   <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                   <div className="leading-tight">
-                    <p className="font-bold">Uploading video to Vercel Blob...</p>
+                    <p className="font-bold">
+                      {videoSourceType === "file" ? "Uploading video to Vercel Blob..." : "Creating lesson..."}
+                    </p>
                     <p className="text-[10px] opacity-80 mt-0.5">
                       Please keep this window open until complete.
                     </p>
@@ -572,18 +674,24 @@ export default function AdminCourseLessonsPage({
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isUploading || !newLessonData.videoFile}
+                disabled={
+                  isUploading ||
+                  (videoSourceType === "file" && !newLessonData.videoFile) ||
+                  (videoSourceType === "url" && !newLessonUrl.trim())
+                }
                 className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary-dark transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isUploading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Uploading Video...</span>
+                    <span>{videoSourceType === "file" ? "Uploading Video..." : "Creating..."}</span>
                   </>
                 ) : (
                   <>
                     <Plus className="w-4 h-4 text-gold" />
-                    <span>Create & Upload Lesson</span>
+                    <span>
+                      {videoSourceType === "file" ? "Create & Upload Lesson" : "Create Lesson"}
+                    </span>
                   </>
                 )}
               </button>
@@ -692,15 +800,25 @@ export default function AdminCourseLessonsPage({
 
                   {/* Inline Video Player Preview */}
                   {lesson.videoUrl ? (
-                    <div className="rounded-xl overflow-hidden bg-black border border-border shadow-inner">
-                      <video
-                        controls
-                        preload="metadata"
-                        className="w-full max-h-[300px] object-contain mx-auto"
-                        src={lesson.videoUrl}
-                      >
-                        Your browser does not support the video tag.
-                      </video>
+                    <div className="rounded-xl overflow-hidden bg-black border border-border shadow-inner aspect-video max-h-[300px] flex items-center justify-center w-full">
+                      {getYouTubeEmbedUrl(lesson.videoUrl) ? (
+                        <iframe
+                          className="w-full h-full object-contain border-0"
+                          src={getYouTubeEmbedUrl(lesson.videoUrl) || ""}
+                          title={lesson.title}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <video
+                          controls
+                          preload="metadata"
+                          className="w-full max-h-[300px] object-contain mx-auto"
+                          src={lesson.videoUrl}
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      )}
                     </div>
                   ) : (
                     <div className="p-6 rounded-xl bg-primary-tint/20 text-center border border-border">
@@ -823,7 +941,7 @@ export default function AdminCourseLessonsPage({
             <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 <Upload className="w-4 h-4 text-primary" />
-                Replace Video File
+                Replace Video
               </h3>
               <button
                 onClick={() => setReplacingLesson(null)}
@@ -834,53 +952,103 @@ export default function AdminCourseLessonsPage({
             </div>
 
             <p className="text-xs text-muted mb-4">
-              Upload a new video for <strong className="text-foreground">{replacingLesson.title}</strong>. This replaces the existing streaming asset in Vercel Blob.
+              Specify a new video asset for <strong className="text-foreground">{replacingLesson.title}</strong>.
             </p>
 
             <form onSubmit={handleReplaceVideoSubmit} className="space-y-4">
-              <div className="border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary/50 transition-colors bg-background/50">
-                <input
-                  id="replace-video-file-input"
-                  type="file"
-                  accept="video/mp4,video/webm,video/quicktime"
-                  required
+              {/* Toggle Source Type */}
+              <div className="flex rounded-xl bg-background p-1 border border-border">
+                <button
+                  type="button"
+                  onClick={() => setReplaceSourceType("file")}
                   disabled={isReplacingVideo}
-                  onChange={(e) => setReplaceVideoFile(e.target.files?.[0] || null)}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="replace-video-file-input"
-                  className="cursor-pointer flex flex-col items-center gap-2"
+                  className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                    replaceSourceType === "file"
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-muted hover:text-foreground"
+                  }`}
                 >
-                  <div className="w-9 h-9 rounded-full bg-primary-tint text-primary flex items-center justify-center">
-                    <Upload className="w-4 h-4" />
-                  </div>
-                  {replaceVideoFile ? (
-                    <div className="space-y-1">
-                      <p className="text-xs font-bold text-foreground truncate max-w-[240px]">
-                        {replaceVideoFile.name}
-                      </p>
-                      <p className="text-[10px] text-muted">
-                        {(replaceVideoFile.size / (1024 * 1024)).toFixed(2)} MB
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">
-                        Select replacement video
-                      </p>
-                      <p className="text-[10px] text-muted">
-                        MP4, WebM or MOV up to 200MB
-                      </p>
-                    </div>
-                  )}
-                </label>
+                  Upload File
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReplaceSourceType("url")}
+                  disabled={isReplacingVideo}
+                  className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                    replaceSourceType === "url"
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  YouTube / URL
+                </button>
               </div>
+
+              {/* Conditional Input Fields */}
+              {replaceSourceType === "file" ? (
+                <div className="border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary/50 transition-colors bg-background/50">
+                  <input
+                    id="replace-video-file-input"
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime"
+                    required={replaceSourceType === "file"}
+                    disabled={isReplacingVideo}
+                    onChange={(e) => setReplaceVideoFile(e.target.files?.[0] || null)}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="replace-video-file-input"
+                    className="cursor-pointer flex flex-col items-center gap-2"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-primary-tint text-primary flex items-center justify-center">
+                      <Upload className="w-4 h-4" />
+                    </div>
+                    {replaceVideoFile ? (
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-foreground truncate max-w-[240px]">
+                          {replaceVideoFile.name}
+                        </p>
+                        <p className="text-[10px] text-muted">
+                          {(replaceVideoFile.size / (1024 * 1024)).toFixed(2)} MB
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">
+                          Select replacement video
+                        </p>
+                        <p className="text-[10px] text-muted">
+                          MP4, WebM or MOV up to 200MB
+                        </p>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Video URL <span className="text-red">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={replaceVideoUrl}
+                    onChange={(e) => setReplaceVideoUrl(e.target.value)}
+                    placeholder="e.g. https://www.youtube.com/watch?v=..."
+                    required={replaceSourceType === "url"}
+                    disabled={isReplacingVideo}
+                    className="w-full px-3 py-2 rounded-xl bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-50"
+                  />
+                </div>
+              )}
 
               {isReplacingVideo && (
                 <div className="p-3 rounded-xl bg-primary-tint text-primary border border-primary/20 flex items-center gap-2 text-xs animate-pulse">
                   <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                  <span>Uploading replacement video to Vercel Blob...</span>
+                  <span>
+                    {replaceSourceType === "file"
+                      ? "Uploading replacement video to Vercel Blob..."
+                      : "Updating lesson video..."}
+                  </span>
                 </div>
               )}
 
@@ -895,16 +1063,22 @@ export default function AdminCourseLessonsPage({
                 </button>
                 <button
                   type="submit"
-                  disabled={isReplacingVideo || !replaceVideoFile}
+                  disabled={
+                    isReplacingVideo ||
+                    (replaceSourceType === "file" && !replaceVideoFile) ||
+                    (replaceSourceType === "url" && !replaceVideoUrl.trim())
+                  }
                   className="px-4 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-dark rounded-xl shadow-md shadow-primary/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {isReplacingVideo ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Uploading...</span>
+                      <span>{replaceSourceType === "file" ? "Uploading..." : "Updating..."}</span>
                     </>
                   ) : (
-                    <span>Upload & Replace</span>
+                    <span>
+                      {replaceSourceType === "file" ? "Upload & Replace" : "Replace Video"}
+                    </span>
                   )}
                 </button>
               </div>
