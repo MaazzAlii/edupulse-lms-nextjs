@@ -6,6 +6,8 @@ export interface ILesson extends Document {
   title: string;
   order: number;
   videoUrl: string;
+  videoProvider: "upload" | "youtube";
+  youtubeVideoId: string;
   durationSeconds: number;
   isPreview: boolean;
   createdAt: Date;
@@ -30,6 +32,15 @@ const lessonSchema = new Schema<ILesson>(
       default: 1,
     },
     videoUrl: {
+      type: String,
+      default: "",
+    },
+    videoProvider: {
+      type: String,
+      enum: ["upload", "youtube"],
+      default: "upload",
+    },
+    youtubeVideoId: {
       type: String,
       default: "",
     },
