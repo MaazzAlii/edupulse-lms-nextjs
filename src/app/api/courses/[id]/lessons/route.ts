@@ -82,23 +82,30 @@ export async function POST(
     const orderStr = formData.get("order") as string | null;
     const isPreviewStr = formData.get("isPreview") as string | null;
     const videoFile = formData.get("video") as File | null;
+    const videoUrlFromForm = formData.get("videoUrl") as string | null;
 
     if (!title || !title.trim()) {
       return apiError("Lesson title is required", 400);
     }
 
-    if (!videoFile || !(videoFile instanceof File) || videoFile.size === 0) {
-      return apiError("A valid video file is required", 400);
-    }
-
-    let uploadResult;
-    try {
-      uploadResult = await uploadVideo(videoFile);
-    } catch (uploadErr: any) {
-      if (uploadErr instanceof VideoUploadError) {
-        return apiError(uploadErr.message, uploadErr.statusCode);
+    let finalVideoUrl = "";
+    if (videoUrlFromForm && videoUrlFromForm.trim()) {
+      finalVideoUrl = videoUrlFromForm.trim();
+    } else {
+      if (!videoFile || !(videoFile instanceof File) || videoFile.size === 0) {
+        return apiError("Either a video file or a video URL is required", 400);
       }
-      return apiError(uploadErr.message || "Video upload failed", 500);
+
+      let uploadResult;
+      try {
+        uploadResult = await uploadVideo(videoFile);
+        finalVideoUrl = uploadResult.url;
+      } catch (uploadErr: any) {
+        if (uploadErr instanceof VideoUploadError) {
+          return apiError(uploadErr.message, uploadErr.statusCode);
+        }
+        return apiError(uploadErr.message || "Video upload failed", 500);
+      }
     }
 
     let order = 1;
@@ -120,7 +127,7 @@ export async function POST(
       title: title.trim(),
       order,
       isPreview,
-      videoUrl: uploadResult.url,
+      videoUrl: finalVideoUrl,
       durationSeconds: 0,
     });
 
