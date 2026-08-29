@@ -38,6 +38,8 @@ interface LessonItem {
   title: string;
   order: number;
   videoUrl: string;
+  videoProvider?: "upload" | "youtube";
+  youtubeVideoId?: string;
   durationSeconds: number;
   isPreview: boolean;
   createdAt: string;
@@ -117,6 +119,93 @@ export default function AdminCourseLessonsPage({
   // Delete Lesson Modal
   const [deletingLesson, setDeletingLesson] = useState<LessonItem | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+  // YouTube Batch Import State
+  const [youtubeBatchUrl, setYoutubeBatchUrl] = useState<string>("");
+  const [isPreviewingBatch, setIsPreviewingBatch] = useState<boolean>(false);
+  const [isImportingBatch, setIsImportingBatch] = useState<boolean>(false);
+  const [batchPreviewResult, setBatchPreviewResult] = useState<{
+    items: Array<{ videoId: string; title: string; durationSeconds: number }>;
+    skipped: Array<{ title: string; reason: string }>;
+  } | null>(null);
+  const [skippedImportReport, setSkippedImportReport] = useState<
+    Array<{ title: string; reason: string }>
+  >([]);
+
+  const handlePreviewYoutubeBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!youtubeBatchUrl.trim()) {
+      setErrorMessage("Please enter a YouTube video or playlist URL.");
+      return;
+    }
+
+    try {
+      setIsPreviewingBatch(true);
+      setErrorMessage(null);
+
+      const res = await fetch(`/api/admin/courses/${courseId}/lessons/import-youtube?preview=true`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: youtubeBatchUrl.trim(), previewOnly: true }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setErrorMessage(data.message || "Failed to preview YouTube content.");
+        return;
+      }
+
+      setBatchPreviewResult({
+        items: data.items || [],
+        skipped: data.skipped || [],
+      });
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to preview YouTube content.");
+    } finally {
+      setIsPreviewingBatch(false);
+    }
+  };
+
+  const handleConfirmYoutubeBatchImport = async () => {
+    if (!youtubeBatchUrl.trim()) return;
+
+    try {
+      setIsImportingBatch(true);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
+      const res = await fetch(`/api/admin/courses/${courseId}/lessons/import-youtube`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: youtubeBatchUrl.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setErrorMessage(data.message || "Failed to import YouTube content.");
+        return;
+      }
+
+      const createdCount = data.created ? data.created.length : 0;
+      const skippedList = data.skipped || [];
+      setSkippedImportReport(skippedList);
+
+      setSuccessMessage(
+        `Successfully imported ${createdCount} lesson${createdCount === 1 ? "" : "s"} from YouTube!` +
+          (skippedList.length > 0 ? ` (${skippedList.length} skipped due to embedding or availability restrictions)` : "")
+      );
+
+      setBatchPreviewResult(null);
+      setYoutubeBatchUrl("");
+      await fetchCourseAndLessons();
+    } catch (err: any) {
+      setErrorMessage(err.message || "An unexpected error occurred during YouTube import.");
+    } finally {
+      setIsImportingBatch(false);
+    }
+  };
 
   const fetchCourseAndLessons = useCallback(async () => {
     try {
@@ -697,6 +786,116 @@ export default function AdminCourseLessonsPage({
               </button>
             </form>
           </div>
+
+          {/* YouTube Batch Import Card */}
+          <div className="card-surface p-6 sm:p-7 sticky top-[30rem] space-y-4 mt-6">
+            <div className="flex items-center gap-2 pb-3 border-b border-border">
+              <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center font-bold shadow-sm">
+                <Play className="w-4 h-4 fill-current" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-foreground">Import from YouTube</h2>
+                <p className="text-[11px] text-muted">Import playlist or video via Data API</p>
+              </div>
+            </div>
+
+            <form onSubmit={handlePreviewYoutubeBatch} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  YouTube Video or Playlist URL
+                </label>
+                <input
+                  type="text"
+                  value={youtubeBatchUrl}
+                  onChange={(e) => setYoutubeBatchUrl(e.target.value)}
+                  placeholder="e.g. https://www.youtube.com/playlist?list=..."
+                  required
+                  disabled={isPreviewingBatch || isImportingBatch}
+                  className="w-full px-3 py-2 rounded-xl bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-50"
+                />
+                <p className="text-[10px] text-muted mt-1">
+                  Supports playlists up to 50 items or single video links.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={isPreviewingBatch || isImportingBatch || !youtubeBatchUrl.trim()}
+                  className="flex-1 py-2 px-3 rounded-xl text-xs font-bold text-foreground bg-surface hover:bg-black/5 border border-border transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {isPreviewingBatch ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Eye className="w-3.5 h-3.5 text-primary" />
+                  )}
+                  <span>Preview</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmYoutubeBatchImport}
+                  disabled={isPreviewingBatch || isImportingBatch || !youtubeBatchUrl.trim()}
+                  className="flex-1 py-2 px-3 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all shadow-md shadow-red-600/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {isImportingBatch ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="w-3.5 h-3.5" />
+                  )}
+                  <span>Import All</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Preview Modal/Container */}
+            {batchPreviewResult && (
+              <div className="p-3.5 rounded-xl bg-background border border-border space-y-3 animate-fadeIn text-xs">
+                <div className="flex items-center justify-between font-bold text-foreground pb-2 border-b border-border">
+                  <span>Preview ({batchPreviewResult.items.length} Videos)</span>
+                  <button
+                    onClick={() => setBatchPreviewResult(null)}
+                    className="text-muted hover:text-foreground text-[10px]"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                  {batchPreviewResult.items.map((item, idx) => (
+                    <div
+                      key={item.videoId}
+                      className="p-2 rounded-lg bg-surface border border-border flex items-center justify-between gap-2"
+                    >
+                      <div className="truncate pr-2">
+                        <span className="font-bold text-muted mr-1.5">#{idx + 1}</span>
+                        <span className="font-semibold text-foreground">{item.title}</span>
+                      </div>
+                      <span className="text-[10px] text-muted shrink-0">
+                        {Math.floor(item.durationSeconds / 60)}m {item.durationSeconds % 60}s
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {batchPreviewResult.skipped.length > 0 && (
+                  <div className="pt-2 border-t border-border space-y-1">
+                    <p className="text-[11px] font-bold text-amber-500 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      Skipped Videos ({batchPreviewResult.skipped.length}):
+                    </p>
+                    <ul className="space-y-1 pl-2 text-[10px] text-muted">
+                      {batchPreviewResult.skipped.map((s, idx) => (
+                        <li key={idx}>
+                          • <strong className="text-foreground">{s.title}</strong> — {s.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right Column: Existing Lessons List & Preview Players */}
@@ -752,6 +951,18 @@ export default function AdminCourseLessonsPage({
                     </div>
 
                     <div className="flex items-center gap-2 self-start sm:self-auto">
+                      {lesson.videoProvider === "youtube" || lesson.youtubeVideoId ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20">
+                          <Play className="w-2.5 h-2.5 fill-current" />
+                          YouTube
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                          <Film className="w-2.5 h-2.5" />
+                          Uploaded
+                        </span>
+                      )}
+
                       {lesson.isPreview ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-tint text-green border border-green/30">
                           <Play className="w-2.5 h-2.5 fill-current" />
