@@ -159,7 +159,7 @@ export default function CourseDetailPage({
       try {
         const res = await fetch(`/api/enrollments/me?courseId=${courseId}`, { cache: "no-store" });
         const data = await res.json();
-        if (data.success && data.paymentStatus === "Paid") {
+        if (data.success && (data.isEnrolled || data.paymentStatus === "Paid")) {
           setIsEnrolled(true);
         }
       } catch (e) {
@@ -688,16 +688,25 @@ export default function CourseDetailPage({
                 <span className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
                   Tuition & Access
                 </span>
-                <div className="flex items-baseline gap-2">
-                  {course.price === 0 ? (
-                    <span className="text-3xl font-black text-green">Free</span>
-                  ) : (
-                    <span className="text-3xl font-black text-foreground">
-                      ${course.price.toFixed(2)}
+                {isEnrolled ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-extrabold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      Enrolled & Purchased
                     </span>
-                  )}
-                  <span className="text-xs text-muted">one-time payment</span>
-                </div>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline gap-2">
+                    {course.price === 0 ? (
+                      <span className="text-3xl font-black text-green">Free</span>
+                    ) : (
+                      <span className="text-3xl font-black text-foreground">
+                        ${course.price.toFixed(2)}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted">one-time payment</span>
+                  </div>
+                )}
               </div>
 
               {/* Checkout Error Message */}
@@ -717,11 +726,12 @@ export default function CourseDetailPage({
                       className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"
                     >
                       <PlayCircle className="w-5 h-5" />
-                      <span>Start Learning Now</span>
+                      <span>Continue Learning</span>
                     </Link>
                   ) : (
-                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs font-bold text-center">
-                      ✓ You own this course
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs font-bold text-center flex items-center justify-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>You own this course</span>
                     </div>
                   )
                 ) : (
@@ -748,7 +758,11 @@ export default function CourseDetailPage({
                     )}
                   </button>
                 )}
-                {!isEnrolled && (
+                {isEnrolled ? (
+                  <p className="text-[11px] text-center text-emerald-400 font-medium">
+                    ✓ Full lifetime access unlocked
+                  </p>
+                ) : (
                   <p className="text-[11px] text-center text-muted font-medium">
                     ⚡ Instant access • Secure 256-bit Stripe checkout
                   </p>
