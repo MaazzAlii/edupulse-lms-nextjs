@@ -1,21 +1,17 @@
-# EduPulse LMS - Complete Project Dump
-=========================================
-Consolidated full codebase dump for external analysis, debugging, architecture verification, and data flow tracing.
-
-
-## LEVEL 1: ROOT CONFIGURATION & DEPENDENCY FILES
-
+﻿
 --- FILE: package.json ---
 {
   "name": "edupulse-lms",
   "version": "1.0.0",
   "private": true,
-  "description": "⚡ EduPulse LMS — Full-Stack Next.js 15 Learning Management System with Complete Authentication, MongoDB Mongoose, and Protected Routes",
+  "description": "âš¡ EduPulse LMS â€” Full-Stack Next.js 15 Learning Management System with Complete Authentication, MongoDB Mongoose, and Protected Routes",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",
@@ -27,9 +23,14 @@ Consolidated full codebase dump for external analysis, debugging, architecture v
     "next": "^15.1.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwind-merge": "^2.5.4"
+    "recharts": "^3.10.1",
+    "resend": "^6.24.0",
+    "stripe": "^22.6.0",
+    "tailwind-merge": "^2.5.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.17.0",
@@ -76,6 +77,16 @@ Consolidated full codebase dump for external analysis, debugging, architecture v
 }
 
 
+--- FILE: .env.example ---
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/lms?retryWrites=true&w=majority
+JWT_SECRET=replace_with_a_long_random_secret
+JWT_EXPIRE=7d
+BLOB_READ_WRITE_TOKEN=
+STRIPE_SECRET_KEY=sk_test_placeholder
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+STRIPE_WEBHOOK_SECRET=whsec_placeholder
+
+
 --- FILE: next.config.mjs ---
 import dns from "node:dns";
 
@@ -84,6 +95,26 @@ try {
 } catch (e) {
   // Ignore in environments where setting DNS servers is not allowed
 }
+
+const securityHeaders = [
+  {
+    key: "X-Content-Type-Options",
+    value: "nosniff",
+  },
+  {
+    key: "X-Frame-Options",
+    value: "DENY",
+  },
+  {
+    key: "Referrer-Policy",
+    value: "strict-origin-when-cross-origin",
+  },
+  {
+    key: "Content-Security-Policy",
+    value:
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; frame-src 'self' https://js.stripe.com https://hooks.stripe.com; img-src 'self' data: blob: https:; media-src 'self' blob: https: https://*.public.blob.vercel-storage.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' ws: wss: https://api.stripe.com https://*.public.blob.vercel-storage.com;",
+  },
+];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -95,21 +126,17 @@ const nextConfig = {
       },
     ],
   },
-};
-
-export default nextConfig;
-
-
---- FILE: postcss.config.mjs ---
-/** @type {import('postcss-load-config').Config} */
-const config = {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+    ];
   },
 };
 
-export default config;
+export default nextConfig;
 
 
 --- FILE: tailwind.config.ts ---
@@ -161,75 +188,79 @@ const config: Config = {
 export default config;
 
 
---- FILE: .eslintrc.json ---
+--- FILE: postcss.config.mjs ---
+/** @type {import('postcss-load-config').Config} */
+const config = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+
+export default config;
+
+
+--- FILE: vercel.json ---
 {
-  "extends": "next/core-web-vitals"
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-notifications",
+      "schedule": "0 0 * * *"
+    }
+  ]
 }
 
 
---- FILE: .gitignore ---
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
+--- FILE: src/app/globals.css ---
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-# testing
-/coverage
+:root {
+  --background: #faf8f6;
+  --foreground: #221b20;
+  --muted: #7a7078;
+  --border: #e8e1e4;
+  --surface: #ffffff;
+  --primary: #6b2d5c;
+  --primary-dark: #4f2144;
+  --primary-tint: #f3e8f0;
+  --gold: #c9972a;
+  --gold-tint: #faf1dd;
+  --green: #2e8b57;
+  --green-tint: #e6f4ec;
+  --red: #c0392b;
+  --red-tint: #fbe9e7;
+}
 
-# next.js
-/.next/
-/out/
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+}
 
-# production
-/build
-/dist
+/* Glassmorphism & Cards */
+.card-surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px -2px rgba(107, 45, 92, 0.05);
+}
 
-# misc
-.DS_Store
-*.pem
+.card-surface-hover {
+  transition: all 0.2s ease-in-out;
+}
+.card-surface-hover:hover {
+  border-color: rgba(107, 45, 92, 0.3);
+  box-shadow: 0 10px 25px -5px rgba(107, 45, 92, 0.1);
+  transform: translateY(-2px);
+}
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# local env files
-.env*.local
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-
---- FILE: .env.example ---
-MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/lms?retryWrites=true&w=majority
-JWT_SECRET=replace_with_a_long_random_secret
-JWT_EXPIRE=7d
-BLOB_READ_WRITE_TOKEN=
-
-
-
---- FILE: .env.local ---
-# MongoDB Connection (Atlas Cluster)
-MONGO_URI=mongodb+srv://maaz:MaazAli@cluster0.rqxedta.mongodb.net/edupulse_lms?retryWrites=true&w=majority&appName=Cluster0
-JWT_SECRET=dev_jwt_super_secret_key_edupulse_foundation_2026
-JWT_EXPIRE=7d
-
-
---- FILE: next-env.d.ts ---
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-/// <reference path="./.next/types/routes.d.ts" />
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
-
-
-## LEVEL 2: MAIN ENTRY POINT & INITIALIZATION FILES
 
 --- FILE: src/app/layout.tsx ---
 import type { Metadata } from "next";
@@ -238,7 +269,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
-  title: "EduPulse LMS — Modern Next.js 15 Learning Platform",
+  title: "EduPulse LMS â€” Modern Next.js 15 Learning Platform",
   description:
     "Full-Stack Learning Management System built with Next.js 15, TypeScript, MongoDB Mongoose, JWT Authentication, and Protected Routes.",
 };
@@ -261,160 +292,706 @@ export default function RootLayout({
 }
 
 
---- FILE: src/app/admin/layout.tsx ---
+--- FILE: src/app/page.tsx ---
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
-  Shield,
-  LayoutDashboard,
-  FolderTree,
+  Search,
+  Filter,
   BookOpen,
-  ArrowLeft,
+  User,
   GraduationCap,
-  PlusCircle,
-  ExternalLink,
+  Sparkles,
+  ArrowRight,
+  RotateCcw,
+  SlidersHorizontal,
+  Layers,
+  Star,
+  Heart,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
 } from "lucide-react";
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { user, loading, isAdmin } = useAuth();
+interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+}
+
+interface Course {
+  _id: string;
+  title: string;
+  slug: string;
+  description: string;
+  category: {
+    _id: string;
+    name: string;
+    slug: string;
+  };
+  instructor: string;
+  level: "Beginner" | "Intermediate" | "Advanced";
+  price: number;
+  thumbnailUrl?: string;
+  isPublished: boolean;
+  averageRating?: number;
+  numReviews?: number;
+  createdAt: string;
+}
+
+function CatalogContent() {
   const router = useRouter();
-  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { isAuthenticated } = useAuth();
+
+  const urlKeyword = searchParams.get("keyword") || "";
+  const urlCategory = searchParams.get("category") || "";
+  const urlLevel = searchParams.get("level") || "";
+  const urlSort = searchParams.get("sort") || "newest";
+  const urlPage = parseInt(searchParams.get("page") || "1", 10);
+
+  const [keywordInput, setKeywordInput] = useState(urlKeyword);
+  const [selectedCategory, setSelectedCategory] = useState(urlCategory);
+  const [selectedLevel, setSelectedLevel] = useState(urlLevel);
+  const [selectedSort, setSelectedSort] = useState(urlSort);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [total, setTotal] = useState<number>(0);
+  const [page, setPage] = useState<number>(urlPage);
+  const [pages, setPages] = useState<number>(1);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Wishlist state (set of wishlisted courseIds)
+  const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
+
+  // Sync state if URL changes externally
+  useEffect(() => {
+    setKeywordInput(urlKeyword);
+    setSelectedCategory(urlCategory);
+    setSelectedLevel(urlLevel);
+    setSelectedSort(urlSort);
+    setPage(urlPage);
+  }, [urlKeyword, urlCategory, urlLevel, urlSort, urlPage]);
+
+  // Fetch user wishlist if authenticated
+  useEffect(() => {
+    async function fetchWishlist() {
+      if (!isAuthenticated) return;
+      try {
+        const res = await fetch("/api/wishlist", { cache: "no-store" });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.wishlists)) {
+          const ids = new Set<string>(
+            data.wishlists
+              .map((w: any) => w.course?._id?.toString())
+              .filter(Boolean)
+          );
+          setWishlistedIds(ids);
+        }
+      } catch (err) {
+        console.error("Failed to load user wishlist:", err);
+      }
+    }
+
+    fetchWishlist();
+  }, [isAuthenticated]);
+
+  // Fetch categories
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const res = await fetch("/api/categories");
+        const data = await res.json();
+        if (data.success && Array.isArray(data.categories)) {
+          setCategories(data.categories);
+        }
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+      }
+    }
+    loadCategories();
+  }, []);
+
+  // Fetch courses with pagination and sorting
+  const fetchCourses = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (urlKeyword) params.set("keyword", urlKeyword);
+      if (urlCategory) params.set("category", urlCategory);
+      if (urlLevel) params.set("level", urlLevel);
+      if (urlSort) params.set("sort", urlSort);
+      params.set("page", urlPage.toString());
+      params.set("limit", "9");
+
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/courses${queryString}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+
+      if (data.success && Array.isArray(data.courses)) {
+        setCourses(data.courses);
+        setTotal(data.total || data.courses.length);
+        setPages(data.pages || 1);
+      } else {
+        setCourses([]);
+        setTotal(0);
+        setPages(1);
+      }
+    } catch (err) {
+      console.error("Error fetching courses:", err);
+      setCourses([]);
+      setTotal(0);
+      setPages(1);
+    } finally {
+      setLoading(false);
+    }
+  }, [urlKeyword, urlCategory, urlLevel, urlSort, urlPage]);
 
   useEffect(() => {
-    if (!loading && !isAdmin) {
-      router.replace("/");
-    }
-  }, [loading, isAdmin, router]);
+    fetchCourses();
+  }, [fetchCourses]);
 
-  if (loading || !isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-medium text-muted">
-            Verifying administrative privileges...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const updateFilters = (opts: {
+    keyword?: string;
+    category?: string;
+    level?: string;
+    sort?: string;
+    page?: number;
+  }) => {
+    const params = new URLSearchParams();
+    const k = opts.keyword !== undefined ? opts.keyword : keywordInput;
+    const c = opts.category !== undefined ? opts.category : selectedCategory;
+    const l = opts.level !== undefined ? opts.level : selectedLevel;
+    const s = opts.sort !== undefined ? opts.sort : selectedSort;
+    const p = opts.page !== undefined ? opts.page : 1; // reset page to 1 on filter change unless specified
 
-  const navItems = [
-    {
-      label: "Overview",
-      href: "/admin",
-      icon: LayoutDashboard,
-      exact: true,
-    },
-    {
-      label: "Categories",
-      href: "/admin/categories",
-      icon: FolderTree,
-      exact: false,
-    },
-    {
-      label: "Courses",
-      href: "/admin/courses",
-      icon: BookOpen,
-      exact: false,
-    },
-  ];
+    if (k.trim()) params.set("keyword", k.trim());
+    if (c) params.set("category", c);
+    if (l) params.set("level", l);
+    if (s && s !== "newest") params.set("sort", s);
+    if (p > 1) params.set("page", p.toString());
 
-  const isNavActive = (href: string, exact: boolean) => {
-    if (exact) return pathname === href;
-    return pathname.startsWith(href);
+    const queryString = params.toString();
+    router.push(queryString ? `/?${queryString}` : "/");
   };
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateFilters({ keyword: keywordInput, page: 1 });
+  };
+
+  const handleToggleWishlist = async (e: React.MouseEvent, courseId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=/`);
+      return;
+    }
+
+    const isWishlisted = wishlistedIds.has(courseId);
+
+    try {
+      if (isWishlisted) {
+        setWishlistedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(courseId);
+          return next;
+        });
+        await fetch(`/api/wishlist/${courseId}`, { method: "DELETE" });
+      } else {
+        setWishlistedIds((prev) => new Set(prev).add(courseId));
+        await fetch("/api/wishlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseId }),
+        });
+      }
+    } catch (err) {
+      console.error("Wishlist toggle error:", err);
+    }
+  };
+
+  const resetAllFilters = () => {
+    setKeywordInput("");
+    setSelectedCategory("");
+    setSelectedLevel("");
+    setSelectedSort("newest");
+    router.push("/");
+  };
+
+  const hasActiveFilters = Boolean(urlKeyword || urlCategory || urlLevel || (urlSort && urlSort !== "newest"));
+
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row">
-      {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-surface border-r border-border md:min-h-screen flex flex-col shrink-0">
-        {/* Admin Header */}
-        <div className="p-5 border-b border-border flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/20">
-              <Shield className="w-5 h-5 text-gold" />
+    <div className="min-h-screen pb-16">
+      {/* Hero / Banner */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-primary-tint/40 via-surface to-background border-b border-border py-12 sm:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary-tint border border-primary/20 text-primary text-xs font-semibold mb-4 shadow-sm">
+              <Sparkles className="w-3.5 h-3.5 text-gold" />
+              <span>Explore Top Tech & Business Programs</span>
             </div>
-            <div>
-              <h2 className="font-bold text-sm text-foreground tracking-tight leading-tight">
-                Admin Portal
-              </h2>
-              <span className="text-[10px] font-semibold text-gold uppercase tracking-wider">
-                EduPulse Core
+
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight leading-tight">
+              Master New Skills with{" "}
+              <span className="text-primary underline decoration-gold/40 decoration-4 underline-offset-8">
+                Industry Experts
               </span>
+            </h1>
+
+            <p className="mt-4 text-base sm:text-lg text-muted max-w-2xl mx-auto">
+              Discover accredited courses designed to accelerate your career.
+              Learn at your own pace with hands-on projects and verified credentials.
+            </p>
+
+            {/* Search and Filters Bar */}
+            <div className="mt-8 max-w-2xl mx-auto">
+              <form
+                onSubmit={handleSearchSubmit}
+                className="flex flex-col sm:flex-row items-center gap-2 bg-surface p-2 rounded-2xl border border-border shadow-lg shadow-primary/5 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all"
+              >
+                <div className="relative flex-1 w-full flex items-center">
+                  <Search className="w-5 h-5 text-muted absolute left-3.5 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={keywordInput}
+                    onChange={(e) => setKeywordInput(e.target.value)}
+                    placeholder="Search courses by title (e.g. React, Python)..."
+                    className="w-full pl-11 pr-4 py-2.5 text-sm bg-transparent text-foreground placeholder:text-muted/70 focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 active:scale-[0.98]"
+                >
+                  <Search className="w-4 h-4" />
+                  <span>Search</span>
+                </button>
+              </form>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Navigation Links */}
-        <nav className="p-3 space-y-1 flex-1">
-          <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted">
-            Management
-          </div>
+      {/* Main Catalog Area */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        {/* Filters Controls Row */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-6 border-b border-border">
+          {/* Category Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto w-full pb-2 lg:pb-0 scrollbar-none">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-1.5 shrink-0 mr-1">
+              <Filter className="w-3.5 h-3.5 text-primary" />
+              Category:
+            </span>
 
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isNavActive(item.href, item.exact);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                  active
+            <button
+              onClick={() => updateFilters({ category: "", page: 1 })}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                !selectedCategory
+                  ? "bg-primary text-white shadow-sm shadow-primary/25"
+                  : "bg-surface border border-border text-muted hover:text-foreground hover:bg-black/5"
+              }`}
+            >
+              All Categories
+            </button>
+
+            {categories.map((cat) => (
+              <button
+                key={cat._id}
+                onClick={() => updateFilters({ category: cat._id, page: 1 })}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                  selectedCategory === cat._id
                     ? "bg-primary text-white shadow-sm shadow-primary/25"
-                    : "text-muted hover:text-foreground hover:bg-black/5"
+                    : "bg-surface border border-border text-muted hover:text-foreground hover:bg-black/5"
                 }`}
               >
-                <Icon className={`w-4 h-4 ${active ? "text-gold" : "text-muted"}`} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-border space-y-2">
-          <div className="px-3 py-2 rounded-xl bg-primary-tint/40 border border-primary/10 flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center text-xs font-bold">
-              {user?.name?.charAt(0).toUpperCase() || "A"}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-semibold text-foreground truncate">
-                {user?.name || "Admin"}
-              </p>
-              <p className="text-[10px] text-gold font-semibold uppercase">
-                Administrator
-              </p>
-            </div>
+                {cat.name}
+              </button>
+            ))}
           </div>
 
-          <Link
-            href="/"
-            className="flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-medium text-muted hover:text-primary hover:bg-primary-tint/60 transition-colors"
-          >
-            <span className="flex items-center gap-1.5">
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Public Storefront
-            </span>
-            <ExternalLink className="w-3 h-3 text-muted" />
-          </Link>
-        </div>
-      </aside>
+          {/* Level Filter, Sort Dropdown & Reset */}
+          <div className="flex flex-wrap items-center gap-3 shrink-0 self-end lg:self-center">
+            {/* Level Selector */}
+            <div className="flex items-center gap-1.5 bg-surface border border-border rounded-xl px-2.5 py-1.5 shadow-sm">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-muted" />
+              <select
+                value={selectedLevel}
+                onChange={(e) => updateFilters({ level: e.target.value, page: 1 })}
+                className="bg-transparent text-xs font-medium text-foreground focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="">All Levels</option>
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Advanced">Advanced</option>
+              </select>
+            </div>
 
-      {/* Main Admin Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
-      </div>
+            {/* Sort Selector */}
+            <div className="flex items-center gap-1.5 bg-surface border border-border rounded-xl px-2.5 py-1.5 shadow-sm">
+              <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
+              <select
+                value={selectedSort}
+                onChange={(e) => updateFilters({ sort: e.target.value, page: 1 })}
+                className="bg-transparent text-xs font-medium text-foreground focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="newest">Newest First</option>
+                <option value="rating">Highest Rated</option>
+                <option value="price_asc">Price: Low to High</option>
+                <option value="price_desc">Price: High to Low</option>
+              </select>
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                onClick={resetAllFilters}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-muted hover:text-primary hover:bg-primary-tint transition-all"
+                title="Reset all filters"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Results Counter */}
+        <div className="py-4 flex items-center justify-between">
+          <p className="text-xs text-muted font-medium">
+            {loading ? (
+              "Searching catalog..."
+            ) : (
+              <>
+                Showing <strong className="text-foreground">{courses.length}</strong> of{" "}
+                <strong className="text-foreground">{total}</strong>{" "}
+                {total === 1 ? "course" : "courses"}
+              </>
+            )}
+          </p>
+        </div>
+
+        {/* Course Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className="card-surface overflow-hidden p-4 flex flex-col gap-4 animate-pulse"
+              >
+                <div className="w-full h-44 bg-gray-200/80 rounded-xl" />
+                <div className="h-4 bg-gray-200/80 rounded-md w-1/3" />
+                <div className="h-6 bg-gray-200/80 rounded-md w-4/5" />
+                <div className="h-10 bg-gray-200/80 rounded-md w-full" />
+                <div className="mt-auto flex justify-between items-center pt-2 border-t border-border/60">
+                  <div className="h-4 bg-gray-200/80 rounded-md w-1/4" />
+                  <div className="h-6 bg-gray-200/80 rounded-md w-1/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : courses.length === 0 ? (
+          /* Empty State */
+          <div className="card-surface p-12 text-center my-8 max-w-lg mx-auto">
+            <div className="w-16 h-16 rounded-2xl bg-primary-tint text-primary mx-auto flex items-center justify-center mb-4">
+              <BookOpen className="w-8 h-8 text-gold" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground mb-1">
+              No courses found
+            </h3>
+            <p className="text-sm text-muted mb-6">
+              We couldn&apos;t find any published courses matching your current search
+              or filter criteria.
+            </p>
+            {hasActiveFilters && (
+              <button
+                onClick={resetAllFilters}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-semibold shadow-md shadow-primary/20 transition-all"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Clear All Filters</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          /* Course Cards */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+            {courses.map((course) => {
+              const isSaved = wishlistedIds.has(course._id);
+
+              return (
+                <Link
+                  key={course._id}
+                  href={`/courses/${course._id}`}
+                  className="group card-surface overflow-hidden flex flex-col card-surface-hover hover:border-primary/30 relative"
+                >
+                  {/* Thumbnail / Header */}
+                  <div className="relative w-full h-48 bg-primary-tint/50 overflow-hidden flex items-center justify-center">
+                    {course.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={course.thumbnailUrl}
+                        alt={course.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                      />
+                    ) : null}
+
+                    {/* Fallback pattern when no thumbnail */}
+                    {!course.thumbnailUrl && (
+                      <div className="flex flex-col items-center gap-2 text-primary/70 group-hover:scale-105 transition-transform duration-300">
+                        <GraduationCap className="w-12 h-12 text-gold" />
+                        <span className="text-xs font-bold tracking-wider uppercase text-primary/60">
+                          {course.category?.name || "Course"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Badges Overlays */}
+                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                      {course.category && (
+                        <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-surface/90 backdrop-blur-md text-primary shadow-sm border border-border">
+                          {course.category.name}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="absolute top-3 right-3 flex items-center gap-2">
+                      {/* Wishlist Heart Button */}
+                      <button
+                        onClick={(e) => handleToggleWishlist(e, course._id)}
+                        className={`p-2 rounded-xl backdrop-blur-md transition-all shadow-md ${
+                          isSaved
+                            ? "bg-red-500 text-white fill-red-500 scale-105"
+                            : "bg-slate-900/70 text-slate-300 hover:text-red-400 hover:bg-slate-900"
+                        }`}
+                        title={isSaved ? "Remove from Wishlist" : "Save to Wishlist"}
+                      >
+                        <Heart
+                          className={`w-3.5 h-3.5 ${isSaved ? "fill-current" : ""}`}
+                        />
+                      </button>
+
+                      <span
+                        className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase tracking-wider shadow-sm ${
+                          course.level === "Beginner"
+                            ? "bg-green-tint text-green border border-green/30"
+                            : course.level === "Intermediate"
+                            ? "bg-gold-tint text-gold border border-gold/30"
+                            : "bg-red-tint text-red border border-red/30"
+                        }`}
+                      >
+                        {course.level}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-5 flex-1 flex flex-col">
+                    <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug mb-2">
+                      {course.title}
+                    </h3>
+
+                    <p className="text-xs text-muted line-clamp-2 leading-relaxed mb-3">
+                      {course.description}
+                    </p>
+
+                    {/* Rating display */}
+                    <div className="flex items-center gap-1.5 mb-4 text-xs font-semibold">
+                      {course.numReviews && course.numReviews > 0 ? (
+                        <>
+                          <div className="flex items-center gap-1 text-gold bg-gold-tint px-2 py-0.5 rounded-md border border-gold/30">
+                            <Star className="w-3.5 h-3.5 fill-gold" />
+                            <span className="font-bold text-foreground">
+                              {course.averageRating?.toFixed(1)}
+                            </span>
+                          </div>
+                          <span className="text-muted text-[11px]">
+                            ({course.numReviews} {course.numReviews === 1 ? "review" : "reviews"})
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-[11px] text-muted font-normal italic">
+                          No reviews yet
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs text-muted font-medium">
+                        <div className="w-6 h-6 rounded-full bg-primary-tint text-primary flex items-center justify-center font-bold text-[10px]">
+                          {course.instructor.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="truncate max-w-[120px]">
+                          {course.instructor}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        {course.price === 0 ? (
+                          <span className="text-sm font-extrabold text-green">
+                            Free
+                          </span>
+                        ) : (
+                          <span className="text-base font-extrabold text-foreground">
+                            ${course.price.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Pagination Bar */}
+        {pages > 1 && (
+          <div className="mt-10 flex items-center justify-between pt-6 border-t border-border">
+            <span className="text-xs text-muted font-medium">
+              Page <strong className="text-foreground">{page}</strong> of{" "}
+              <strong className="text-foreground">{pages}</strong>
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => updateFilters({ page: page - 1 })}
+                disabled={page <= 1 || loading}
+                className="px-3.5 py-2 rounded-xl bg-surface border border-border text-xs font-semibold text-foreground hover:bg-black/5 transition disabled:opacity-40 flex items-center gap-1"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Prev</span>
+              </button>
+
+              <div className="hidden sm:flex items-center gap-1">
+                {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => updateFilters({ page: p })}
+                    className={`w-8 h-8 rounded-xl text-xs font-bold transition ${
+                      p === page
+                        ? "bg-primary text-white shadow-sm"
+                        : "bg-surface text-muted hover:text-foreground hover:bg-black/5 border border-border"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => updateFilters({ page: page + 1 })}
+                disabled={page >= pages || loading}
+                className="px-3.5 py-2 rounded-xl bg-surface border border-border text-xs font-semibold text-foreground hover:bg-black/5 transition disabled:opacity-40 flex items-center gap-1"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <CatalogContent />
+    </Suspense>
+  );
+}
+
+
+--- FILE: src/app/robots.ts ---
+import { MetadataRoute } from "next";
+
+export default function robots(): MetadataRoute.Robots {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://edupulse.vercel.app");
+
+  return {
+    rules: {
+      userAgent: "*",
+      allow: ["/", "/courses/"],
+      disallow: [
+        "/admin/",
+        "/dashboard",
+        "/my-courses",
+        "/wishlist",
+        "/api/",
+        "/certificate/",
+        "/checkout/",
+        "/login",
+        "/register",
+        "/forgot-password",
+        "/reset-password/",
+      ],
+    },
+    sitemap: `${baseUrl}/sitemap.xml`,
+  };
+}
+
+
+--- FILE: src/app/sitemap.ts ---
+import { MetadataRoute } from "next";
+import { connectDB } from "@/lib/db";
+import Course from "@/models/Course";
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://edupulse.vercel.app");
+
+  try {
+    await connectDB();
+    const courses = await Course.find({ isPublished: true }).select("_id updatedAt");
+
+    const courseEntries: MetadataRoute.Sitemap = courses.map((course) => ({
+      url: `${baseUrl}/courses/${course._id}`,
+      lastModified: course.updatedAt || new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+    }));
+
+    return [
+      {
+        url: baseUrl,
+        lastModified: new Date(),
+        changeFrequency: "daily",
+        priority: 1.0,
+      },
+      ...courseEntries,
+    ];
+  } catch (err) {
+    console.error("Error generating sitemap:", err);
+    return [
+      {
+        url: baseUrl,
+        lastModified: new Date(),
+        changeFrequency: "daily",
+        priority: 1.0,
+      },
+    ];
+  }
 }
 
 
@@ -568,153 +1145,6 @@ export function useAuth() {
 }
 
 
---- FILE: src/components/Navbar.tsx ---
-"use client";
-
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
-import { GraduationCap, LogOut, LayoutDashboard, Shield, BookOpen, User } from "lucide-react";
-
-export default function Navbar() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, loading, isAuthenticated, isAdmin, logout } = useAuth();
-
-  const handleLogout = async () => {
-    await logout();
-    router.push("/");
-    router.refresh();
-  };
-
-  const isActive = (path: string) => {
-    return pathname === path;
-  };
-
-  return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-surface/90 backdrop-blur-md transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Brand Logo */}
-        <div className="flex items-center gap-8">
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 group focus:outline-none"
-          >
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-md shadow-primary/20 group-hover:bg-primary-dark transition-colors">
-              <GraduationCap className="w-6 h-6 text-gold" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-lg text-primary tracking-tight leading-none group-hover:text-primary-dark transition-colors">
-                EduPulse
-              </span>
-              <span className="text-[11px] font-semibold text-gold tracking-widest uppercase mt-0.5">
-                Academy
-              </span>
-            </div>
-          </Link>
-
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center space-x-1">
-            <Link
-              href="/"
-              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                isActive("/")
-                  ? "bg-primary-tint text-primary font-semibold"
-                  : "text-muted hover:text-foreground hover:bg-black/5"
-              }`}
-            >
-              Courses
-            </Link>
-            <Link
-              href="/dashboard"
-              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
-                isActive("/dashboard")
-                  ? "bg-primary-tint text-primary font-semibold"
-                  : "text-muted hover:text-foreground hover:bg-black/5"
-              }`}
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              Dashboard
-            </Link>
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
-                  pathname.startsWith("/admin")
-                    ? "bg-gold-tint text-gold font-semibold"
-                    : "text-muted hover:text-foreground hover:bg-black/5"
-                }`}
-              >
-                <Shield className="w-4 h-4 text-gold" />
-                Admin Portal
-              </Link>
-            )}
-          </nav>
-        </div>
-
-        {/* Right Side: Auth / User State */}
-        <div className="flex items-center gap-3">
-          {loading ? (
-            <div className="flex items-center gap-2">
-              <div className="w-20 h-8 bg-gray-200/60 animate-pulse rounded-lg" />
-            </div>
-          ) : isAuthenticated && user ? (
-            <div className="flex items-center gap-3">
-              {isAdmin && (
-                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-gold-tint text-gold border border-gold/30">
-                  <Shield className="w-3 h-3" />
-                  Admin
-                </span>
-              )}
-
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary-tint/60 border border-primary/10">
-                <div className="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center text-xs font-bold shadow-sm">
-                  {user.name ? user.name.charAt(0).toUpperCase() : "U"}
-                </div>
-                <div className="hidden sm:flex flex-col text-left pr-1">
-                  <span className="text-xs font-semibold text-foreground leading-tight max-w-[120px] truncate">
-                    {user.name}
-                  </span>
-                  <span className="text-[10px] text-muted capitalize leading-none">
-                    {user.role}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-muted hover:text-red hover:bg-red-tint rounded-lg transition-colors border border-transparent hover:border-red/20"
-                title="Sign out"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Sign out</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Link
-                href="/login"
-                className="px-4 py-2 text-sm font-medium text-primary hover:text-primary-dark hover:bg-primary-tint/70 rounded-lg transition-all"
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/register"
-                className="px-4 py-2 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-lg shadow-sm shadow-primary/20 hover:shadow-md transition-all active:scale-[0.98]"
-              >
-                Register
-              </Link>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-}
-
-
-## LEVEL 3: CORE SERVICES, API HANDLERS & BACKEND LOGIC
-
 --- FILE: src/lib/db.ts ---
 import mongoose from "mongoose";
 
@@ -775,6 +1205,65 @@ export async function connectDB(): Promise<typeof mongoose> {
 export default connectDB;
 
 
+--- FILE: src/lib/auth.ts ---
+import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
+import { verifyToken } from "@/lib/jwt";
+import { connectDB } from "@/lib/db";
+import User, { IUser } from "@/models/User";
+
+export const AUTH_COOKIE = "lms_token";
+
+/**
+ * For use inside Route Handlers. Reads cookie from NextRequest,
+ * verifies token, and retrieves the User document from DB.
+ * Returns null if user is not found or is suspended (isActive === false).
+ */
+export async function getAuthUserFromRequest(
+  req: NextRequest
+): Promise<IUser | null> {
+  try {
+    const token = req.cookies.get(AUTH_COOKIE)?.value;
+    if (!token) return null;
+
+    const decoded = verifyToken(token);
+    if (!decoded || !decoded.id) return null;
+
+    await connectDB();
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user || user.isActive === false) return null;
+
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * For use inside Server Components and Server Actions.
+ * In Next.js 15, cookies() is asynchronous.
+ * Returns null if user is not found or is suspended (isActive === false).
+ */
+export async function getServerUser(): Promise<IUser | null> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(AUTH_COOKIE)?.value;
+    if (!token) return null;
+
+    const decoded = verifyToken(token);
+    if (!decoded || !decoded.id) return null;
+
+    await connectDB();
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user || user.isActive === false) return null;
+
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+
 --- FILE: src/lib/jwt.ts ---
 import jwt from "jsonwebtoken";
 
@@ -796,59 +1285,6 @@ export function verifyToken(token: string): JWTPayload | null {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
     return decoded;
-  } catch {
-    return null;
-  }
-}
-
-
---- FILE: src/lib/auth.ts ---
-import { NextRequest } from "next/server";
-import { cookies } from "next/headers";
-import { verifyToken } from "@/lib/jwt";
-import { connectDB } from "@/lib/db";
-import User, { IUser } from "@/models/User";
-
-export const AUTH_COOKIE = "lms_token";
-
-/**
- * For use inside Route Handlers. Reads cookie from NextRequest,
- * verifies token, and retrieves the User document from DB.
- */
-export async function getAuthUserFromRequest(
-  req: NextRequest
-): Promise<IUser | null> {
-  try {
-    const token = req.cookies.get(AUTH_COOKIE)?.value;
-    if (!token) return null;
-
-    const decoded = verifyToken(token);
-    if (!decoded || !decoded.id) return null;
-
-    await connectDB();
-    const user = await User.findById(decoded.id).select("-password");
-    return user;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * For use inside Server Components and Server Actions.
- * In Next.js 15, cookies() is asynchronous.
- */
-export async function getServerUser(): Promise<IUser | null> {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(AUTH_COOKIE)?.value;
-    if (!token) return null;
-
-    const decoded = verifyToken(token);
-    if (!decoded || !decoded.id) return null;
-
-    await connectDB();
-    const user = await User.findById(decoded.id).select("-password");
-    return user;
   } catch {
     return null;
   }
@@ -878,6 +1314,459 @@ export async function requireAdmin(
 }
 
 
+--- FILE: src/lib/enrollmentGuard.ts ---
+import mongoose from "mongoose";
+import { connectDB } from "@/lib/db";
+import Enrollment from "@/models/Enrollment";
+import Course from "@/models/Course";
+
+/**
+ * Checks if a given user has paid access to a specific course.
+ * Returns true if the user is an admin OR has a 'Paid' Enrollment for the course.
+ *
+ * @param userId - User ID string or ObjectId
+ * @param courseId - Course ID string or ObjectId
+ * @param userRole - Optional role of the user (e.g. 'admin')
+ */
+export async function hasPaidAccess(
+  userId?: string | mongoose.Types.ObjectId,
+  courseId?: string | mongoose.Types.ObjectId,
+  userRole?: string
+): Promise<boolean> {
+  if (!userId || !courseId) {
+    return false;
+  }
+
+  // Admins always have access to all courses
+  if (userRole === "admin") {
+    return true;
+  }
+
+  try {
+    await connectDB();
+
+    // Check if course is free (price === 0)
+    const course = await Course.findById(courseId).select("price");
+    if (course && course.price === 0) {
+      return true;
+    }
+
+    const enrollment = await Enrollment.findOne({
+      user: userId,
+      course: courseId,
+      paymentStatus: "Paid",
+    });
+
+    return !!enrollment;
+  } catch (error) {
+    console.error("Error checking paid access guard:", error);
+    return false;
+  }
+}
+
+
+--- FILE: src/lib/stripe.ts ---
+import Stripe from "stripe";
+
+export class StripeConfigurationError extends Error {
+  statusCode: number;
+
+  constructor(message: string, statusCode = 500) {
+    super(message);
+    this.name = "StripeConfigurationError";
+    this.statusCode = statusCode;
+  }
+}
+
+let stripeInstance: Stripe | null = null;
+
+/**
+ * Returns a configured Stripe instance.
+ * Throws a clear runtime error if STRIPE_SECRET_KEY is missing.
+ */
+export function getStripe(): Stripe {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    throw new StripeConfigurationError(
+      "Stripe secret key is not configured. Please set STRIPE_SECRET_KEY in environment variables.",
+      500
+    );
+  }
+
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(secretKey, {
+      apiVersion: "2025-02-24.acacia" as any, // Pin to modern API version
+      typescript: true,
+    });
+  }
+
+  return stripeInstance;
+}
+
+
+--- FILE: src/lib/email.ts ---
+import { Resend } from "resend";
+
+interface SendEmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+}
+
+let resendInstance: Resend | null = null;
+
+function getResendClient(): Resend | null {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn("âš ï¸ RESEND_API_KEY is missing. Email dispatch will be simulated in server logs.");
+    return null;
+  }
+  if (!resendInstance) {
+    resendInstance = new Resend(apiKey);
+  }
+  return resendInstance;
+}
+
+/**
+ * Sends a transactional email asynchronously without blocking or throwing errors.
+ */
+export async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const resend = getResendClient();
+    const from = process.env.EMAIL_FROM || "EduPulse Academy <onboarding@resend.dev>";
+
+    if (!resend) {
+      console.log(`[SIMULATED EMAIL] To: ${to} | Subject: "${subject}"`);
+      return { success: true, id: "simulated_email_id" };
+    }
+
+    const response = await resend.emails.send({
+      from,
+      to,
+      subject,
+      html,
+    });
+
+    if (response.error) {
+      console.error(`âŒ Resend Email Error sending to ${to}:`, response.error);
+      return { success: false, error: response.error.message };
+    }
+
+    console.log(`âœ… Email sent successfully to ${to} (ID: ${response.data?.id})`);
+    return { success: true, id: response.data?.id };
+  } catch (err: any) {
+    console.error(`âŒ Exception sending email to ${to}:`, err.message || err);
+    return { success: false, error: err.message || "Failed to send email" };
+  }
+}
+
+
+--- FILE: src/lib/emailTemplates.ts ---
+/**
+ * Transactional Email HTML Templates
+ * Styled with inline CSS for cross-client compatibility.
+ */
+
+export function welcomeEmailTemplate(name: string): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://edupulse.vercel.app";
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Welcome to EduPulse Academy</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f8fafc;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0b0f19; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #1e293b; border-radius: 16px; overflow: hidden; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #3D1E6D; padding: 30px; text-align: center;">
+              <h1 style="margin: 0; color: #D4AF37; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">EduPulse Academy</h1>
+              <p style="margin: 5px 0 0 0; color: #e2e8f0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Empowering Your Learning Journey</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="margin: 0 0 15px 0; color: #f8fafc; font-size: 20px; font-weight: 700;">Welcome to the Future of Learning, ${name}! ðŸ‘‹</h2>
+              <p style="margin: 0 0 20px 0; color: #94a3b8; font-size: 14px; line-height: 1.6;">
+                We are thrilled to have you join our global student community. At EduPulse, you get access to expert-led tech tracks, interactive video classrooms, and printable verified certificates upon completion.
+              </p>
+              
+              <div style="background-color: #0f172a; border-radius: 12px; padding: 20px; border: 1px solid #334155; margin-bottom: 30px;">
+                <p style="margin: 0 0 10px 0; color: #D4AF37; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">âš¡ Quick Start Tips</p>
+                <ul style="margin: 0; padding-left: 20px; color: #cbd5e1; font-size: 13px; line-height: 1.6;">
+                  <li style="margin-bottom: 6px;">Browse our curated course catalog</li>
+                  <li style="margin-bottom: 6px;">Enroll in free or premium interactive video tracks</li>
+                  <li>Track your progress on your personal Student Dashboard</li>
+                </ul>
+              </div>
+
+              <!-- CTA Button -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center">
+                    <a href="${appUrl}" target="_blank" style="display: inline-block; background-color: #3D1E6D; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 10px; border: 1px solid #D4AF37;">
+                      Explore Course Catalog &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0f172a; padding: 20px; text-align: center; border-top: 1px solid #334155;">
+              <p style="margin: 0; color: #64748b; font-size: 12px;">&copy; ${new Date().getFullYear()} EduPulse Academy. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
+export function orderConfirmationEmailTemplate(opts: {
+  name: string;
+  courseTitle: string;
+  amount: number;
+  date: string;
+  courseId: string;
+}): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://edupulse.vercel.app";
+  const learnUrl = `${appUrl}/courses/${opts.courseId}`;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Enrollment Confirmation - EduPulse</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f8fafc;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0b0f19; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #1e293b; border-radius: 16px; overflow: hidden; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #3D1E6D; padding: 30px; text-align: center;">
+              <h1 style="margin: 0; color: #D4AF37; font-size: 26px; font-weight: 800;">EduPulse Academy</h1>
+              <p style="margin: 5px 0 0 0; color: #10b981; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">âœ… Enrollment & Order Confirmed</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="margin: 0 0 15px 0; color: #f8fafc; font-size: 20px; font-weight: 700;">Thank You for Your Order, ${opts.name}!</h2>
+              <p style="margin: 0 0 25px 0; color: #94a3b8; font-size: 14px; line-height: 1.6;">
+                Your payment was processed successfully. Full unlimited access to your new course has been unlocked on your account.
+              </p>
+              
+              <!-- Order Receipt Table -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0f172a; border-radius: 12px; border: 1px solid #334155; margin-bottom: 30px; overflow: hidden;">
+                <tr>
+                  <td style="padding: 15px 20px; background-color: #1e293b; border-b: 1px solid #334155; font-size: 12px; font-weight: 700; color: #D4AF37; text-transform: uppercase;">
+                    Order Receipt Summary
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 20px;">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding-bottom: 12px; color: #94a3b8; font-size: 13px;">Course Title:</td>
+                        <td style="padding-bottom: 12px; color: #f8fafc; font-size: 13px; font-weight: 700; text-align: right;">${opts.courseTitle}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom: 12px; color: #94a3b8; font-size: 13px;">Amount Paid:</td>
+                        <td style="padding-bottom: 12px; color: #10b981; font-size: 14px; font-weight: 800; text-align: right;">${opts.amount === 0 ? "Free" : `$${opts.amount.toFixed(2)}`}</td>
+                      </tr>
+                      <tr>
+                        <td style="color: #94a3b8; font-size: 13px;">Transaction Date:</td>
+                        <td style="color: #f8fafc; font-size: 13px; font-weight: 600; text-align: right;">${opts.date}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA Button -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center">
+                    <a href="${learnUrl}" target="_blank" style="display: inline-block; background-color: #10b981; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 10px;">
+                      Start Learning Now &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0f172a; padding: 20px; text-align: center; border-top: 1px solid #334155;">
+              <p style="margin: 0; color: #64748b; font-size: 12px;">&copy; ${new Date().getFullYear()} EduPulse Academy. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
+export function passwordResetEmailTemplate(opts: {
+  name: string;
+  resetUrl: string;
+}): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Reset Your Password - EduPulse</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f8fafc;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0b0f19; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #1e293b; border-radius: 16px; overflow: hidden; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #3D1E6D; padding: 30px; text-align: center;">
+              <h1 style="margin: 0; color: #D4AF37; font-size: 26px; font-weight: 800;">EduPulse Academy</h1>
+              <p style="margin: 5px 0 0 0; color: #ef4444; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">ðŸ” Account Security Request</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="margin: 0 0 15px 0; color: #f8fafc; font-size: 20px; font-weight: 700;">Password Reset Request</h2>
+              <p style="margin: 0 0 20px 0; color: #94a3b8; font-size: 14px; line-height: 1.6;">
+                Hi ${opts.name}, we received a request to reset the password for your EduPulse account. Click the button below to set a new password.
+              </p>
+              
+              <div style="background-color: #0f172a; border-radius: 12px; padding: 15px 20px; border: 1px solid #334155; margin-bottom: 25px;">
+                <p style="margin: 0; color: #f59e0b; font-weight: 600; font-size: 13px;">
+                  âš ï¸ This security link will expire in <strong>15 minutes</strong>. If you did not request this, you can safely ignore this email.
+                </p>
+              </div>
+
+              <!-- CTA Button -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center">
+                    <a href="${opts.resetUrl}" target="_blank" style="display: inline-block; background-color: #ef4444; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 10px;">
+                      Reset Password Now &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0f172a; padding: 20px; text-align: center; border-top: 1px solid #334155;">
+              <p style="margin: 0; color: #64748b; font-size: 12px;">&copy; ${new Date().getFullYear()} EduPulse Academy. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
+
+--- FILE: src/lib/progress.ts ---
+/**
+ * Computes the percentage of completed lessons for a course.
+ *
+ * @param completedCount - Number of completed lessons
+ * @param totalCount - Total number of published lessons in the course
+ * @returns Progress percentage as an integer between 0 and 100
+ */
+export function computeProgress(completedCount: number, totalCount: number): number {
+  if (!totalCount || totalCount <= 0) {
+    return 0;
+  }
+  const percentage = Math.round((completedCount / totalCount) * 100);
+  return Math.min(100, Math.max(0, percentage));
+}
+
+
+--- FILE: src/lib/rateLimit.ts ---
+import { NextRequest } from "next/server";
+
+interface RateLimitStore {
+  count: number;
+  resetTime: number;
+}
+
+const ipStore = new Map<string, RateLimitStore>();
+
+// Clean up expired entries every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  ipStore.forEach((store, ip) => {
+    if (now > store.resetTime) {
+      ipStore.delete(ip);
+    }
+  });
+}, 10 * 60 * 1000);
+
+/**
+ * In-memory IP Rate Limiter
+ * @param req NextRequest
+ * @param maxHits Limit of max requests allowed (default 10)
+ * @param windowMs Time window in ms (default 15 minutes)
+ */
+export function checkRateLimit(
+  req: NextRequest,
+  maxHits: number = 10,
+  windowMs: number = 15 * 60 * 1000
+): { isAllowed: boolean; remainingHits: number } {
+  const forwarded = req.headers.get("x-forwarded-for");
+  const ip = forwarded ? forwarded.split(",")[0].trim() : "127.0.0.1";
+
+  const now = Date.now();
+  const store = ipStore.get(ip);
+
+  if (!store || now > store.resetTime) {
+    ipStore.set(ip, {
+      count: 1,
+      resetTime: now + windowMs,
+    });
+    return { isAllowed: true, remainingHits: maxHits - 1 };
+  }
+
+  if (store.count >= maxHits) {
+    return { isAllowed: false, remainingHits: 0 };
+  }
+
+  store.count += 1;
+  ipStore.set(ip, store);
+  return { isAllowed: true, remainingHits: maxHits - store.count };
+}
+
+
 --- FILE: src/lib/response.ts ---
 import { NextResponse } from "next/server";
 
@@ -900,6 +1789,99 @@ export function apiSuccess(data: Record<string, unknown> = {}, status = 200) {
     { status }
   );
 }
+
+
+--- FILE: src/lib/reviewStats.ts ---
+import mongoose from "mongoose";
+import { connectDB } from "@/lib/db";
+import Review from "@/models/Review";
+import Course from "@/models/Course";
+
+/**
+ * Recalculates denormalized averageRating and numReviews on Course document
+ * based on all existing reviews for that course.
+ */
+export async function recalculateCourseRating(
+  courseId: string | mongoose.Types.ObjectId
+): Promise<{ averageRating: number; numReviews: number }> {
+  try {
+    await connectDB();
+
+    const courseObjId =
+      typeof courseId === "string"
+        ? new mongoose.Types.ObjectId(courseId)
+        : courseId;
+
+    const stats = await Review.aggregate([
+      { $match: { course: courseObjId } },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: "$rating" },
+          numReviews: { $sum: 1 },
+        },
+      },
+    ]);
+
+    let averageRating = 0;
+    let numReviews = 0;
+
+    if (stats.length > 0) {
+      // Round to 1 decimal place (e.g. 4.7)
+      averageRating = Math.round(stats[0].averageRating * 10) / 10;
+      numReviews = stats[0].numReviews;
+    }
+
+    await Course.findByIdAndUpdate(courseId, {
+      averageRating,
+      numReviews,
+    });
+
+    return { averageRating, numReviews };
+  } catch (error) {
+    console.error("Error recalculating course rating stats:", error);
+    return { averageRating: 0, numReviews: 0 };
+  }
+}
+
+
+--- FILE: src/lib/validation.ts ---
+import { z } from "zod";
+
+export const registerSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100, "Name is too long"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+});
+
+export const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+export const resetPasswordSchema = z.object({
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+});
+
+export const checkoutSchema = z.object({
+  courseId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid course ID format"),
+});
+
+export const reviewSchema = z.object({
+  rating: z
+    .number()
+    .min(1, "Rating must be between 1 and 5")
+    .max(5, "Rating must be between 1 and 5"),
+  comment: z.string().min(1, "Comment is required").max(2000, "Comment is too long"),
+});
+
+export const questionSchema = z.object({
+  question: z.string().min(1, "Question text is required").max(3000, "Question is too long"),
+});
 
 
 --- FILE: src/lib/videoUpload.ts ---
@@ -989,6 +1971,102 @@ export async function uploadVideo(
 }
 
 
+--- FILE: src/lib/analytics.ts ---
+import mongoose, { Model } from "mongoose";
+import { connectDB } from "@/lib/db";
+
+export interface MonthlyMetric {
+  month: string; // e.g. "Sep 2025"
+  count: number;
+  revenue: number;
+}
+
+/**
+ * Aggregates monthly metric counts and revenue over the last 12 months
+ * filling in zero-activity months automatically.
+ */
+export async function getLast12MonthsData(
+  model: Model<any>,
+  dateField: string,
+  matchFilter: Record<string, any> = {}
+): Promise<MonthlyMetric[]> {
+  await connectDB();
+
+  const now = new Date();
+  // Start date = 11 months ago on the 1st of that month
+  const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+  const aggregateResult = await model.aggregate([
+    {
+      $match: {
+        [dateField]: { $gte: twelveMonthsAgo },
+        ...matchFilter,
+      },
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: `$${dateField}` },
+          month: { $month: `$${dateField}` },
+        },
+        count: { $sum: 1 },
+        revenue: { $sum: "$amount" },
+      },
+    },
+    {
+      $sort: {
+        "_id.year": 1,
+        "_id.month": 1,
+      },
+    },
+  ]);
+
+  // Create lookup map keyed by "YYYY-M"
+  const statsMap: Record<string, { count: number; revenue: number }> = {};
+  aggregateResult.forEach((item) => {
+    const key = `${item._id.year}-${item._id.month}`;
+    statsMap[key] = {
+      count: item.count || 0,
+      revenue: item.revenue || 0,
+    };
+  });
+
+  const monthsData: MonthlyMetric[] = [];
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  // Fill 12 monthly slots
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+    const year = d.getFullYear();
+    const monthIdx = d.getMonth();
+    const key = `${year}-${monthIdx + 1}`;
+    const label = `${monthNames[monthIdx]} ${year.toString().slice(-2)}`;
+
+    const found = statsMap[key] || { count: 0, revenue: 0 };
+    monthsData.push({
+      month: label,
+      count: found.count,
+      revenue: Math.round(found.revenue * 100) / 100,
+    });
+  }
+
+  return monthsData;
+}
+
+
 --- FILE: src/models/User.ts ---
 import mongoose, { Document, Model, Schema } from "mongoose";
 import bcrypt from "bcryptjs";
@@ -999,6 +2077,9 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   role: "student" | "admin";
+  isActive: boolean;
+  resetPasswordToken?: string;
+  resetPasswordExpire?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(enteredPassword: string): Promise<boolean>;
@@ -1032,6 +2113,18 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: ["student", "admin"],
       default: "student",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    resetPasswordToken: {
+      type: String,
+      select: false,
+    },
+    resetPasswordExpire: {
+      type: Date,
+      select: false,
     },
   },
   {
@@ -1115,6 +2208,8 @@ export interface ICourse extends Document {
   price: number;
   thumbnailUrl: string;
   isPublished: boolean;
+  averageRating: number;
+  numReviews: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -1165,6 +2260,17 @@ const courseSchema = new Schema<ICourse>(
     isPublished: {
       type: Boolean,
       default: false,
+    },
+    averageRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    numReviews: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
   },
   {
@@ -1249,6 +2355,7 @@ export interface IEnrollment extends Document {
   stripeSessionId?: string;
   stripePaymentIntentId?: string;
   completedLessons: mongoose.Types.ObjectId[];
+  completedAt?: Date | null;
   enrolledAt: Date;
   updatedAt: Date;
 }
@@ -1289,6 +2396,10 @@ const enrollmentSchema = new Schema<IEnrollment>(
         ref: "Lesson",
       },
     ],
+    completedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: { createdAt: "enrolledAt", updatedAt: true },
@@ -1305,6 +2416,237 @@ const Enrollment: Model<IEnrollment> =
 export default Enrollment;
 
 
+--- FILE: src/models/Review.ts ---
+import mongoose, { Document, Model, Schema } from "mongoose";
+
+export interface IReview extends Document {
+  _id: mongoose.Types.ObjectId;
+  course: mongoose.Types.ObjectId;
+  user: mongoose.Types.ObjectId;
+  rating: number;
+  comment: string;
+  adminReply?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const reviewSchema = new Schema<IReview>(
+  {
+    course: {
+      type: Schema.Types.ObjectId,
+      ref: "Course",
+      required: [true, "Course is required"],
+    },
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "User is required"],
+    },
+    rating: {
+      type: Number,
+      required: [true, "Rating is required"],
+      min: [1, "Rating must be at least 1"],
+      max: [5, "Rating cannot exceed 5"],
+    },
+    comment: {
+      type: String,
+      required: [true, "Comment is required"],
+      trim: true,
+      maxlength: [2000, "Comment cannot exceed 2000 characters"],
+    },
+    adminReply: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// Compound index so a user can only leave one review per course
+reviewSchema.index({ course: 1, user: 1 }, { unique: true });
+
+const Review: Model<IReview> =
+  mongoose.models.Review || mongoose.model<IReview>("Review", reviewSchema);
+
+export default Review;
+
+
+--- FILE: src/models/Question.ts ---
+import mongoose, { Document, Model, Schema } from "mongoose";
+
+export interface IReply {
+  _id?: mongoose.Types.ObjectId;
+  user: mongoose.Types.ObjectId;
+  text: string;
+  createdAt: Date;
+}
+
+export interface IQuestion extends Document {
+  _id: mongoose.Types.ObjectId;
+  lesson: mongoose.Types.ObjectId;
+  course: mongoose.Types.ObjectId;
+  user: mongoose.Types.ObjectId;
+  question: string;
+  replies: IReply[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const replySchema = new Schema<IReply>(
+  {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "User is required"],
+    },
+    text: {
+      type: String,
+      required: [true, "Reply text is required"],
+      trim: true,
+      maxlength: [2000, "Reply cannot exceed 2000 characters"],
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true }
+);
+
+const questionSchema = new Schema<IQuestion>(
+  {
+    lesson: {
+      type: Schema.Types.ObjectId,
+      ref: "Lesson",
+      required: [true, "Lesson is required"],
+    },
+    course: {
+      type: Schema.Types.ObjectId,
+      ref: "Course",
+      required: [true, "Course is required"],
+    },
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "User is required"],
+    },
+    question: {
+      type: String,
+      required: [true, "Question text is required"],
+      trim: true,
+      maxlength: [2000, "Question cannot exceed 2000 characters"],
+    },
+    replies: [replySchema],
+  },
+  {
+    timestamps: true,
+  }
+);
+
+questionSchema.index({ lesson: 1, createdAt: -1 });
+questionSchema.index({ course: 1, createdAt: -1 });
+
+const Question: Model<IQuestion> =
+  mongoose.models.Question || mongoose.model<IQuestion>("Question", questionSchema);
+
+export default Question;
+
+
+--- FILE: src/models/Notification.ts ---
+import mongoose, { Document, Model, Schema } from "mongoose";
+
+export interface INotification extends Document {
+  _id: mongoose.Types.ObjectId;
+  recipient: mongoose.Types.ObjectId;
+  type: "new_enrollment" | "new_question" | "question_reply";
+  message: string;
+  link: string;
+  isRead: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const notificationSchema = new Schema<INotification>(
+  {
+    recipient: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Recipient is required"],
+    },
+    type: {
+      type: String,
+      enum: ["new_enrollment", "new_question", "question_reply"],
+      required: [true, "Notification type is required"],
+    },
+    message: {
+      type: String,
+      required: [true, "Notification message is required"],
+      trim: true,
+    },
+    link: {
+      type: String,
+      required: [true, "Notification link is required"],
+      trim: true,
+    },
+    isRead: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+notificationSchema.index({ recipient: 1, createdAt: -1 });
+
+const Notification: Model<INotification> =
+  mongoose.models.Notification ||
+  mongoose.model<INotification>("Notification", notificationSchema);
+
+export default Notification;
+
+
+--- FILE: src/models/Wishlist.ts ---
+import mongoose, { Document, Model, Schema } from "mongoose";
+
+export interface IWishlist extends Document {
+  _id: mongoose.Types.ObjectId;
+  user: mongoose.Types.ObjectId;
+  course: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const wishlistSchema = new Schema<IWishlist>(
+  {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "User is required"],
+    },
+    course: {
+      type: Schema.Types.ObjectId,
+      ref: "Course",
+      required: [true, "Course is required"],
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+wishlistSchema.index({ user: 1, course: 1 }, { unique: true });
+
+const Wishlist: Model<IWishlist> =
+  mongoose.models.Wishlist || mongoose.model<IWishlist>("Wishlist", wishlistSchema);
+
+export default Wishlist;
+
+
 --- FILE: src/app/api/auth/register/route.ts ---
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
@@ -1312,6 +2654,8 @@ import User from "@/models/User";
 import { signToken } from "@/lib/jwt";
 import { apiError, apiSuccess } from "@/lib/response";
 import { AUTH_COOKIE } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
+import { welcomeEmailTemplate } from "@/lib/emailTemplates";
 
 export async function POST(req: NextRequest) {
   try {
@@ -1340,6 +2684,13 @@ export async function POST(req: NextRequest) {
       password,
       role: "student",
     });
+
+    // Send Welcome Email (non-blocking)
+    sendEmail({
+      to: user.email,
+      subject: "Welcome to EduPulse Academy! ðŸš€",
+      html: welcomeEmailTemplate(user.name),
+    }).catch((err) => console.error("Welcome email send error:", err));
 
     const token = signToken({
       id: user._id.toString(),
@@ -1389,24 +2740,40 @@ import User from "@/models/User";
 import { signToken } from "@/lib/jwt";
 import { apiError, apiSuccess } from "@/lib/response";
 import { AUTH_COOKIE } from "@/lib/auth";
+import { loginSchema } from "@/lib/validation";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
   try {
-    await connectDB();
-
-    const body = await req.json();
-    const { email, password } = body;
-
-    if (!email || !password) {
-      return apiError("Please provide email and password", 400);
+    // 1. Rate limiting check (10 attempts per 15 min)
+    const rateLimit = checkRateLimit(req, 10, 15 * 60 * 1000);
+    if (!rateLimit.isAllowed) {
+      return apiError("Too many login attempts. Please try again in 15 minutes.", 429);
     }
 
+    await connectDB();
+
+    const body = await req.json().catch(() => ({}));
+    
+    // 2. Zod input validation
+    const parsed = loginSchema.safeParse(body);
+    if (!parsed.success) {
+      return apiError(parsed.error.issues[0].message, 400);
+    }
+
+    const { email, password } = parsed.data;
     const normalizedEmail = email.toLowerCase().trim();
+
     // Select password explicitly since it has select: false on schema
     const user = await User.findOne({ email: normalizedEmail }).select("+password");
 
     if (!user) {
       return apiError("Invalid email or password", 401);
+    }
+
+    // Check if account is suspended
+    if (user.isActive === false) {
+      return apiError("Your account has been suspended â€” contact support", 403);
     }
 
     const isMatch = await user.comparePassword(password);
@@ -1424,6 +2791,7 @@ export async function POST(req: NextRequest) {
       name: user.name,
       email: user.email,
       role: user.role,
+      isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -1507,6 +2875,82 @@ export async function GET(req: NextRequest) {
 }
 
 
+--- FILE: src/app/api/auth/forgot-password/route.ts ---
+import { NextRequest } from "next/server";
+import crypto from "crypto";
+import { connectDB } from "@/lib/db";
+import User from "@/models/User";
+import { sendEmail } from "@/lib/email";
+import { passwordResetEmailTemplate } from "@/lib/emailTemplates";
+import { apiSuccess } from "@/lib/response";
+
+/**
+ * POST /api/auth/forgot-password
+ * Generates SHA-256 hashed password reset token (15-min expiry) and emails link.
+ * Always returns generic response to prevent account enumeration leaks.
+ */
+export async function POST(req: NextRequest) {
+  const genericResponse = apiSuccess({
+    message: "If an account exists for that email address, a password reset link has been sent.",
+  });
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { email } = body;
+
+    if (!email || typeof email !== "string" || !email.trim()) {
+      return genericResponse;
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    await connectDB();
+
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (user && user.isActive) {
+      // Generate 32-byte random hex token
+      const rawToken = crypto.randomBytes(32).toString("hex");
+
+      // Hash token for database storage
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(rawToken)
+        .digest("hex");
+
+      user.resetPasswordToken = hashedToken;
+      user.resetPasswordExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      await user.save();
+
+      const reqHost = req.headers.get("x-forwarded-host") || req.headers.get("host");
+      const reqProto = req.headers.get("x-forwarded-proto") || "https";
+      const requestOrigin = reqHost ? `${reqProto}://${reqHost}` : req.nextUrl.origin;
+
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
+          ? process.env.NEXT_PUBLIC_APP_URL
+          : requestOrigin || "http://localhost:3000";
+      const resetUrl = `${baseUrl}/reset-password/${rawToken}`;
+
+      // Dispatch password reset email (non-blocking)
+      sendEmail({
+        to: user.email,
+        subject: "Password Reset Request â€” EduPulse Academy",
+        html: passwordResetEmailTemplate({
+          name: user.name,
+          resetUrl,
+        }),
+      }).catch((err) => console.error("Forgot password email send error:", err));
+    }
+
+    return genericResponse;
+  } catch (error: any) {
+    console.error("Forgot password error:", error);
+    return genericResponse;
+  }
+}
+
+
 --- FILE: src/app/api/categories/route.ts ---
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
@@ -1583,54 +3027,6 @@ export async function POST(req: NextRequest) {
 }
 
 
---- FILE: src/app/api/categories/[id]/route.ts ---
-import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
-import { connectDB } from "@/lib/db";
-import Category from "@/models/Category";
-import Course from "@/models/Course";
-import { requireAdmin } from "@/lib/adminGuard";
-import { apiError, apiSuccess } from "@/lib/response";
-
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const authResult = await requireAdmin(req);
-    if (authResult instanceof NextResponse) return authResult;
-
-    const { id } = await params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return apiError("Invalid category ID", 400);
-    }
-
-    await connectDB();
-
-    const category = await Category.findById(id);
-    if (!category) {
-      return apiError("Category not found", 404);
-    }
-
-    // Check if any course references this category
-    const courseCount = await Course.countDocuments({ category: id });
-    if (courseCount > 0) {
-      return apiError(
-        `Cannot delete category "${category.name}" because ${courseCount} course(s) still reference it. Please reassign or delete those courses first.`,
-        400
-      );
-    }
-
-    await Category.findByIdAndDelete(id);
-
-    return apiSuccess({ message: "Category deleted successfully" });
-  } catch (error: any) {
-    return apiError(error.message || "Failed to delete category", 500);
-  }
-}
-
-
 --- FILE: src/app/api/courses/route.ts ---
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
@@ -1666,7 +3062,7 @@ async function generateUniqueCourseSlug(title: string): Promise<string> {
   return slug;
 }
 
-// GET /api/courses - Public Catalog: Filter by keyword, category, level.
+// GET /api/courses - Public Catalog: Filter by keyword, category, level, sort, page, limit.
 // Admin users can see draft courses; non-admins/anonymous only see isPublished: true
 export async function GET(req: NextRequest) {
   try {
@@ -1676,6 +3072,9 @@ export async function GET(req: NextRequest) {
     const keyword = searchParams.get("keyword")?.trim();
     const category = searchParams.get("category")?.trim();
     const level = searchParams.get("level")?.trim();
+    const sort = searchParams.get("sort")?.trim() || "newest";
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.max(1, parseInt(searchParams.get("limit") || "9", 10));
 
     // Check if requester is admin
     const authUser = await getAuthUserFromRequest(req);
@@ -1700,11 +3099,34 @@ export async function GET(req: NextRequest) {
       filter.level = level;
     }
 
+    // Determine sort options
+    let sortOption: Record<string, 1 | -1> = { createdAt: -1 };
+    if (sort === "price_asc") {
+      sortOption = { price: 1 };
+    } else if (sort === "price_desc") {
+      sortOption = { price: -1 };
+    } else if (sort === "rating") {
+      sortOption = { averageRating: -1, createdAt: -1 };
+    } else if (sort === "oldest") {
+      sortOption = { createdAt: 1 };
+    }
+
+    const total = await Course.countDocuments(filter);
+    const pages = Math.ceil(total / limit) || 1;
+    const skip = (page - 1) * limit;
+
     const courses = await Course.find(filter)
       .populate("category", "name slug")
-      .sort({ createdAt: -1 });
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit);
 
-    return apiSuccess({ courses });
+    return apiSuccess({
+      courses,
+      total,
+      page,
+      pages,
+    });
   } catch (error: any) {
     return apiError(error.message || "Failed to fetch courses", 500);
   }
@@ -1776,261 +3198,843 @@ export async function POST(req: NextRequest) {
 }
 
 
---- FILE: src/app/api/courses/[id]/route.ts ---
-import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
-import { connectDB } from "@/lib/db";
-import Course from "@/models/Course";
-import Category from "@/models/Category";
+--- FILE: src/app/api/checkout/route.ts ---
+import { NextRequest } from "next/server";
 import { getAuthUserFromRequest } from "@/lib/auth";
-import { requireAdmin } from "@/lib/adminGuard";
-import { apiError, apiSuccess } from "@/lib/response";
-
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return apiError("Course not found", 404);
-    }
-
-    await connectDB();
-
-    const course = await Course.findById(id).populate("category", "name slug");
-
-    if (!course) {
-      return apiError("Course not found", 404);
-    }
-
-    // If unpublished, only admins can view
-    if (!course.isPublished) {
-      const authUser = await getAuthUserFromRequest(req);
-      if (authUser?.role !== "admin") {
-        return apiError("Course not found", 404);
-      }
-    }
-
-    return apiSuccess({ course });
-  } catch (error: any) {
-    return apiError(error.message || "Failed to fetch course", 500);
-  }
-}
-
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const authResult = await requireAdmin(req);
-    if (authResult instanceof NextResponse) return authResult;
-
-    const { id } = await params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return apiError("Invalid course ID", 400);
-    }
-
-    const body = await req.json();
-    const updateData: Record<string, any> = {};
-
-    if (body.title !== undefined) updateData.title = body.title.trim();
-    if (body.description !== undefined) updateData.description = body.description.trim();
-    if (body.instructor !== undefined) updateData.instructor = body.instructor.trim();
-    if (body.level !== undefined) updateData.level = body.level;
-    if (body.price !== undefined) {
-      if (Number(body.price) < 0) {
-        return apiError("Price cannot be negative", 400);
-      }
-      updateData.price = Number(body.price);
-    }
-    if (body.thumbnailUrl !== undefined) updateData.thumbnailUrl = body.thumbnailUrl.trim();
-    if (body.isPublished !== undefined) updateData.isPublished = Boolean(body.isPublished);
-
-    await connectDB();
-
-    if (body.category !== undefined) {
-      if (!mongoose.Types.ObjectId.isValid(body.category)) {
-        return apiError("Invalid category ID format", 400);
-      }
-      const categoryDoc = await Category.findById(body.category);
-      if (!categoryDoc) {
-        return apiError("Category not found", 404);
-      }
-      updateData.category = categoryDoc._id;
-    }
-
-    const updatedCourse = await Course.findByIdAndUpdate(
-      id,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).populate("category", "name slug");
-
-    if (!updatedCourse) {
-      return apiError("Course not found", 404);
-    }
-
-    return apiSuccess({ course: updatedCourse });
-  } catch (error: any) {
-    return apiError(error.message || "Failed to update course", 500);
-  }
-}
-
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const authResult = await requireAdmin(req);
-    if (authResult instanceof NextResponse) return authResult;
-
-    const { id } = await params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return apiError("Invalid course ID", 400);
-    }
-
-    await connectDB();
-
-    const course = await Course.findByIdAndDelete(id);
-    if (!course) {
-      return apiError("Course not found", 404);
-    }
-
-    return apiSuccess({ message: "Course deleted successfully" });
-  } catch (error: any) {
-    return apiError(error.message || "Failed to delete course", 500);
-  }
-}
-
-
---- FILE: src/app/api/courses/[id]/lessons/route.ts ---
-import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import Course from "@/models/Course";
+import Enrollment from "@/models/Enrollment";
 import Lesson from "@/models/Lesson";
-import { getAuthUserFromRequest } from "@/lib/auth";
-import { requireAdmin } from "@/lib/adminGuard";
+import { getStripe } from "@/lib/stripe";
 import { apiError, apiSuccess } from "@/lib/response";
-import { uploadVideo, VideoUploadError } from "@/lib/videoUpload";
+import { checkoutSchema } from "@/lib/validation";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+/**
+ * POST /api/checkout
+ * Creates a Stripe Checkout Session for purchasing a course, or enrolls user directly if course is free.
+ * Requires authentication (User or Admin).
+ */
+export async function POST(req: NextRequest) {
   try {
-    const { id } = await params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return apiError("Course not found", 404);
+    // 1. Authenticate user from HTTP-only JWT cookie
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      return apiError("You must be logged in to enroll in a course.", 401);
     }
 
+    // 2. Parse & Zod validate request body
+    const body = await req.json().catch(() => ({}));
+    const parsed = checkoutSchema.safeParse(body);
+    if (!parsed.success) {
+      return apiError(parsed.error.issues[0].message, 400);
+    }
+
+    const { courseId } = parsed.data;
+
+    // 3. Connect DB and fetch course
     await connectDB();
+    const course = await Course.findById(courseId);
 
-    const course = await Course.findById(id);
-    if (!course) {
-      return apiError("Course not found", 404);
+    if (!course || !course.isPublished) {
+      return apiError("Course not found or is not available for purchase.", 404);
     }
 
-    const authUser = await getAuthUserFromRequest(req);
-    const isAdmin = authUser?.role === "admin";
-
-    // If unpublished, only admins can view
-    if (!course.isPublished && !isAdmin) {
-      return apiError("Course not found", 404);
-    }
-
-    const rawLessons = await Lesson.find({ course: id }).sort({ order: 1 });
-
-    // Sanitize videoUrl for non-admins if isPreview is false
-    const lessons = rawLessons.map((lesson) => {
-      const lessonObj = lesson.toObject();
-      if (!isAdmin && !lessonObj.isPreview) {
-        lessonObj.videoUrl = "";
-      }
-      return lessonObj;
+    // 4. Check if user already owns this course with 'Paid' status
+    const existingEnrollment = await Enrollment.findOne({
+      user: user._id,
+      course: course._id,
+      paymentStatus: "Paid",
     });
 
-    return apiSuccess({ lessons });
+    if (existingEnrollment) {
+      return apiError("You already own this course.", 400);
+    }
+
+    // Determine absolute application base URL for redirects (supports dynamic Vercel host & NEXT_PUBLIC_APP_URL)
+    const reqHost = req.headers.get("x-forwarded-host") || req.headers.get("host");
+    const reqProto = req.headers.get("x-forwarded-proto") || "https";
+    const requestOrigin = reqHost ? `${reqProto}://${reqHost}` : req.nextUrl.origin;
+
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
+        ? process.env.NEXT_PUBLIC_APP_URL
+        : requestOrigin || "http://localhost:3000";
+
+    // 5. Handle Free Course (price === 0): Skip Stripe
+    if (course.price === 0) {
+      await Enrollment.findOneAndUpdate(
+        { user: user._id, course: course._id },
+        {
+          amount: 0,
+          paymentStatus: "Paid",
+          stripeSessionId: "free_course_bypass",
+        },
+        { upsert: true, new: true }
+      );
+
+      // Find first lesson for direct learning redirect if available
+      const firstLesson = await Lesson.findOne({ course: course._id }).sort({ order: 1 });
+      const redirectUrl = firstLesson
+        ? `${baseUrl}/learn/${course._id}/${firstLesson._id}`
+        : `${baseUrl}/courses/${course._id}?enrolled=true`;
+
+      return apiSuccess({
+        redirectUrl,
+        message: "Enrolled in free course successfully.",
+      });
+    }
+
+    // 6. Handle Paid Course: Create Stripe Checkout Session
+    const stripe = getStripe();
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: course.title,
+              description: course.description
+                ? course.description.slice(0, 500)
+                : undefined,
+              images: course.thumbnailUrl ? [course.thumbnailUrl] : undefined,
+            },
+            unit_amount: Math.round(course.price * 100), // convert to cents
+          },
+          quantity: 1,
+        },
+      ],
+      customer_email: user.email,
+      metadata: {
+        userId: user._id.toString(),
+        courseId: course._id.toString(),
+      },
+      success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&courseId=${course._id}`,
+      cancel_url: `${baseUrl}/courses/${course._id}?checkout=cancelled`,
+    });
+
+    // 7. Upsert Pending Enrollment row in DB
+    await Enrollment.findOneAndUpdate(
+      { user: user._id, course: course._id },
+      {
+        amount: course.price,
+        paymentStatus: "Pending",
+        stripeSessionId: session.id,
+      },
+      { upsert: true, new: true }
+    );
+
+    return apiSuccess({
+      redirectUrl: session.url,
+      sessionId: session.id,
+    });
   } catch (error: any) {
-    return apiError(error.message || "Failed to fetch lessons", 500);
+    console.error("Error creating checkout session:", error);
+    return apiError(
+      error.message || "Failed to create checkout session",
+      error.statusCode || 500
+    );
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+
+--- FILE: src/app/api/checkout/verify/route.ts ---
+import { NextRequest } from "next/server";
+import { getAuthUserFromRequest } from "@/lib/auth";
+import { connectDB } from "@/lib/db";
+import Enrollment from "@/models/Enrollment";
+import User from "@/models/User";
+import Course from "@/models/Course";
+import Notification from "@/models/Notification";
+import { getStripe } from "@/lib/stripe";
+import { apiError, apiSuccess } from "@/lib/response";
+import { sendEmail } from "@/lib/email";
+import { orderConfirmationEmailTemplate } from "@/lib/emailTemplates";
+
+/**
+ * GET /api/checkout/verify?session_id=...
+ * Directly verifies Stripe checkout session status with Stripe API.
+ * If payment is paid, activates enrollment in DB immediately (failsafe for webhooks).
+ */
+export async function GET(req: NextRequest) {
   try {
-    const authResult = await requireAdmin(req);
-    if (authResult instanceof NextResponse) return authResult;
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      return apiError("You must be logged in to verify checkout.", 401);
+    }
 
-    const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const sessionId = searchParams.get("session_id");
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return apiError("Course not found", 404);
+    if (!sessionId) {
+      return apiError("Missing session_id parameter.", 400);
     }
 
     await connectDB();
 
-    const course = await Course.findById(id);
-    if (!course) {
-      return apiError("Course not found", 404);
+    // Retrieve checkout session directly from Stripe API
+    const stripe = getStripe();
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (!session) {
+      return apiError("Checkout session not found on Stripe.", 404);
     }
 
-    const formData = await req.formData();
-    const title = formData.get("title") as string | null;
-    const orderStr = formData.get("order") as string | null;
-    const isPreviewStr = formData.get("isPreview") as string | null;
-    const videoFile = formData.get("video") as File | null;
+    const userId = session.metadata?.userId || user._id.toString();
+    const courseId = session.metadata?.courseId;
 
-    if (!title || !title.trim()) {
-      return apiError("Lesson title is required", 400);
+    if (!courseId) {
+      return apiError("Course metadata missing from checkout session.", 400);
     }
 
-    if (!videoFile || !(videoFile instanceof File) || videoFile.size === 0) {
-      return apiError("A valid video file is required", 400);
+    // If Stripe confirms payment status is 'paid'
+    if (session.payment_status === "paid") {
+      const paymentIntentId =
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : session.payment_intent?.id || "";
+
+      const amountTotal = session.amount_total ? session.amount_total / 100 : 0;
+
+      // Check if already marked Paid in DB to prevent duplicate emails/notifications
+      const existing = await Enrollment.findOne({ user: userId, course: courseId });
+      const isAlreadyPaid = existing?.paymentStatus === "Paid";
+
+      const updatedEnrollment = await Enrollment.findOneAndUpdate(
+        { user: userId, course: courseId },
+        {
+          paymentStatus: "Paid",
+          stripePaymentIntentId: paymentIntentId,
+          stripeSessionId: session.id,
+          amount: amountTotal,
+        },
+        { upsert: true, new: true }
+      );
+
+      // If enrollment wasn't previously marked Paid, send notification & confirmation email
+      if (!isAlreadyPaid) {
+        const [buyerUser, courseDoc, adminUsers] = await Promise.all([
+          User.findById(userId),
+          Course.findById(courseId),
+          User.find({ role: "admin" }),
+        ]);
+
+        if (adminUsers.length > 0) {
+          const buyerName = buyerUser ? buyerUser.name : "A student";
+          const courseTitle = courseDoc ? courseDoc.title : "a course";
+
+          await Notification.insertMany(
+            adminUsers.map((adm) => ({
+              recipient: adm._id,
+              type: "new_enrollment",
+              message: `${buyerName} enrolled in "${courseTitle}" ($${amountTotal.toFixed(2)})`,
+              link: "/admin",
+            }))
+          ).catch((e) => console.error("Notification insert error:", e));
+        }
+
+        if (buyerUser && courseDoc) {
+          sendEmail({
+            to: buyerUser.email,
+            subject: `Order Confirmation â€” ${courseDoc.title}`,
+            html: orderConfirmationEmailTemplate({
+              name: buyerUser.name,
+              courseTitle: courseDoc.title,
+              amount: amountTotal,
+              date: new Date().toLocaleDateString(),
+              courseId: courseDoc._id.toString(),
+            }),
+          }).catch((err) => console.error("Order confirmation email error:", err));
+        }
+      }
+
+      return apiSuccess({
+        verified: true,
+        paymentStatus: "Paid",
+        courseId,
+        enrollment: updatedEnrollment,
+      });
     }
 
-    let uploadResult;
+    return apiSuccess({
+      verified: false,
+      paymentStatus: session.payment_status,
+      courseId,
+    });
+  } catch (error: any) {
+    console.error("Error verifying checkout session:", error);
+    return apiError(error.message || "Failed to verify checkout session", 500);
+  }
+}
+
+
+--- FILE: src/app/api/webhooks/stripe/route.ts ---
+import { NextRequest, NextResponse } from "next/server";
+import { getStripe } from "@/lib/stripe";
+import { connectDB } from "@/lib/db";
+import Enrollment from "@/models/Enrollment";
+import User from "@/models/User";
+import Course from "@/models/Course";
+import Notification from "@/models/Notification";
+import { sendEmail } from "@/lib/email";
+import { orderConfirmationEmailTemplate } from "@/lib/emailTemplates";
+import Stripe from "stripe";
+
+// Force Node.js runtime for raw request body parsing & crypto verification
+export const runtime = "nodejs";
+
+export async function POST(req: NextRequest) {
+  const signature = req.headers.get("stripe-signature");
+
+  if (!signature) {
+    console.error("Stripe Webhook Error: Missing stripe-signature header");
+    return NextResponse.json(
+      { error: "Missing stripe-signature header" },
+      { status: 400 }
+    );
+  }
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("Stripe Webhook Error: STRIPE_WEBHOOK_SECRET is not configured");
+    return NextResponse.json(
+      { error: "Webhook secret is not configured" },
+      { status: 500 }
+    );
+  }
+
+  let event: Stripe.Event;
+
+  try {
+    // Read raw body string (do NOT call req.json())
+    const rawBody = await req.text();
+    const stripe = getStripe();
+
+    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+  } catch (err: any) {
+    console.error(`Stripe Webhook Signature Verification Failed: ${err.message}`);
+    return NextResponse.json(
+      { error: `Webhook Error: ${err.message}` },
+      { status: 400 }
+    );
+  }
+
+  // Handle specific webhook event types
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+
+    const userId = session.metadata?.userId;
+    const courseId = session.metadata?.courseId;
+
+    if (!userId || !courseId) {
+      console.error(
+        "Stripe Webhook Error: Missing metadata (userId or courseId) in checkout session",
+        session.id
+      );
+      return NextResponse.json(
+        { error: "Missing session metadata" },
+        { status: 400 }
+      );
+    }
+
     try {
-      uploadResult = await uploadVideo(videoFile);
-    } catch (uploadErr: any) {
-      if (uploadErr instanceof VideoUploadError) {
-        return apiError(uploadErr.message, uploadErr.statusCode);
+      await connectDB();
+
+      const paymentIntentId =
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : session.payment_intent?.id || "";
+
+      const amountTotal = session.amount_total ? session.amount_total / 100 : 0;
+
+      // Update or create enrollment to Paid status
+      const updatedEnrollment = await Enrollment.findOneAndUpdate(
+        { user: userId, course: courseId },
+        {
+          paymentStatus: "Paid",
+          stripePaymentIntentId: paymentIntentId,
+          stripeSessionId: session.id,
+          amount: amountTotal,
+        },
+        { upsert: true, new: true }
+      );
+
+      // Notify all admin users of the new paid course enrollment
+      const [buyerUser, courseDoc, adminUsers] = await Promise.all([
+        User.findById(userId),
+        Course.findById(courseId),
+        User.find({ role: "admin" }),
+      ]);
+
+      if (adminUsers.length > 0) {
+        const buyerName = buyerUser ? buyerUser.name : "A student";
+        const courseTitle = courseDoc ? courseDoc.title : "a course";
+
+        await Notification.insertMany(
+          adminUsers.map((adm) => ({
+            recipient: adm._id,
+            type: "new_enrollment",
+            message: `${buyerName} enrolled in "${courseTitle}" ($${amountTotal.toFixed(2)})`,
+            link: "/admin",
+          }))
+        );
       }
-      return apiError(uploadErr.message || "Video upload failed", 500);
+
+      // Send Order Confirmation Email to Buyer (non-blocking)
+      if (buyerUser && courseDoc) {
+        sendEmail({
+          to: buyerUser.email,
+          subject: `Order Confirmation â€” ${courseDoc.title}`,
+          html: orderConfirmationEmailTemplate({
+            name: buyerUser.name,
+            courseTitle: courseDoc.title,
+            amount: amountTotal,
+            date: new Date().toLocaleDateString(),
+            courseId: courseDoc._id.toString(),
+          }),
+        }).catch((err) => console.error("Order confirmation email error:", err));
+      }
+
+      console.log(
+        `âœ… Successfully processed payment for user ${userId} on course ${courseId}. Enrollment ID: ${updatedEnrollment._id}`
+      );
+    } catch (dbError: any) {
+      console.error("Error updating enrollment status in database:", dbError);
+      return NextResponse.json(
+        { error: "Database update failed" },
+        { status: 500 }
+      );
+    }
+  }
+
+  // Return 200 fast to acknowledge receipt to Stripe
+  return NextResponse.json({ received: true }, { status: 200 });
+}
+
+
+--- FILE: src/app/api/enrollments/me/route.ts ---
+import { NextRequest } from "next/server";
+import { getAuthUserFromRequest } from "@/lib/auth";
+import { connectDB } from "@/lib/db";
+import Enrollment from "@/models/Enrollment";
+import { apiError, apiSuccess } from "@/lib/response";
+
+/**
+ * GET /api/enrollments/me
+ * Retrieves current user's enrollment list or single course enrollment status via ?courseId=...
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      return apiError("You must be logged in to check enrollments.", 401);
     }
 
-    let order = 1;
-    if (orderStr !== null && orderStr !== undefined && orderStr !== "") {
-      order = Number(orderStr);
-      if (isNaN(order)) order = 1;
-    } else {
-      // Auto-assign next order number if not specified
-      const lastLesson = await Lesson.findOne({ course: id }).sort({ order: -1 });
-      if (lastLesson) {
-        order = lastLesson.order + 1;
-      }
+    await connectDB();
+    const { searchParams } = new URL(req.url);
+    const courseId = searchParams.get("courseId");
+
+    if (courseId) {
+      const enrollment = await Enrollment.findOne({
+        user: user._id,
+        course: courseId,
+      }).populate("course", "title thumbnailUrl price");
+
+      return apiSuccess({
+        enrollment: enrollment || null,
+        isEnrolled: enrollment?.paymentStatus === "Paid",
+        paymentStatus: enrollment?.paymentStatus || "None",
+      });
     }
 
-    const isPreview = isPreviewStr === "true" || isPreviewStr === "1";
+    // Return all user's enrollments
+    const enrollments = await Enrollment.find({ user: user._id })
+      .populate("course", "title thumbnailUrl price category")
+      .sort({ enrolledAt: -1 });
 
-    const lesson = await Lesson.create({
-      course: course._id,
-      title: title.trim(),
-      order,
-      isPreview,
-      videoUrl: uploadResult.url,
-      durationSeconds: 0,
+    return apiSuccess({
+      count: enrollments.length,
+      enrollments,
+    });
+  } catch (error: any) {
+    console.error("Error fetching user enrollments:", error);
+    return apiError(error.message || "Failed to fetch enrollments", 500);
+  }
+}
+
+
+--- FILE: src/app/api/notifications/route.ts ---
+import { NextRequest } from "next/server";
+import { connectDB } from "@/lib/db";
+import { getAuthUserFromRequest } from "@/lib/auth";
+import Notification from "@/models/Notification";
+import { apiError, apiSuccess } from "@/lib/response";
+
+/**
+ * GET /api/notifications
+ * Fetch user notifications and unread count.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      return apiError("Authentication required.", 401);
+    }
+
+    await connectDB();
+
+    const notifications = await Notification.find({ recipient: user._id })
+      .sort({ createdAt: -1 })
+      .limit(30);
+
+    const unreadCount = await Notification.countDocuments({
+      recipient: user._id,
+      isRead: false,
     });
 
-    return apiSuccess({ lesson }, 201);
+    return apiSuccess({
+      notifications,
+      unreadCount,
+    });
   } catch (error: any) {
-    return apiError(error.message || "Failed to create lesson", 500);
+    console.error("Error fetching notifications:", error);
+    return apiError(error.message || "Failed to fetch notifications", 500);
+  }
+}
+
+
+--- FILE: src/app/api/notifications/read-all/route.ts ---
+import { NextRequest } from "next/server";
+import { connectDB } from "@/lib/db";
+import { getAuthUserFromRequest } from "@/lib/auth";
+import Notification from "@/models/Notification";
+import { apiError, apiSuccess } from "@/lib/response";
+
+/**
+ * PUT /api/notifications/read-all
+ * Mark all notifications for the current user as read.
+ */
+export async function PUT(req: NextRequest) {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      return apiError("Authentication required.", 401);
+    }
+
+    await connectDB();
+
+    await Notification.updateMany(
+      { recipient: user._id, isRead: false },
+      { $set: { isRead: true } }
+    );
+
+    return apiSuccess({
+      message: "All notifications marked as read",
+    });
+  } catch (error: any) {
+    console.error("Error marking all notifications as read:", error);
+    return apiError(error.message || "Failed to mark notifications read", 500);
+  }
+}
+
+
+--- FILE: src/app/api/wishlist/route.ts ---
+import { NextRequest } from "next/server";
+import mongoose from "mongoose";
+import { connectDB } from "@/lib/db";
+import { getAuthUserFromRequest } from "@/lib/auth";
+import Wishlist from "@/models/Wishlist";
+import Course from "@/models/Course";
+import { apiError, apiSuccess } from "@/lib/response";
+
+/**
+ * GET /api/wishlist
+ * Returns current authenticated user's wishlisted courses.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      return apiError("Authentication required.", 401);
+    }
+
+    await connectDB();
+
+    const wishlists = await Wishlist.find({ user: user._id })
+      .populate({
+        path: "course",
+        populate: { path: "category", select: "name slug" },
+      })
+      .sort({ createdAt: -1 });
+
+    const validWishlists = wishlists.filter((w) => w.course && (w.course as any).isPublished);
+
+    return apiSuccess({
+      wishlists: validWishlists,
+      count: validWishlists.length,
+    });
+  } catch (error: any) {
+    console.error("Error fetching wishlist:", error);
+    return apiError(error.message || "Failed to fetch wishlist", 500);
+  }
+}
+
+/**
+ * POST /api/wishlist
+ * Adds a course to current user's wishlist.
+ * Body: { courseId: string }
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      return apiError("Authentication required.", 401);
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const { courseId } = body;
+
+    if (!courseId || !mongoose.Types.ObjectId.isValid(courseId)) {
+      return apiError("Valid courseId is required.", 400);
+    }
+
+    await connectDB();
+
+    const course = await Course.findById(courseId);
+    if (!course || !course.isPublished) {
+      return apiError("Course is unavailable for wishlisting.", 404);
+    }
+
+    const item = await Wishlist.findOneAndUpdate(
+      { user: user._id, course: courseId },
+      { user: user._id, course: courseId },
+      { upsert: true, new: true }
+    ).populate({
+      path: "course",
+      populate: { path: "category", select: "name slug" },
+    });
+
+    return apiSuccess(
+      {
+        message: "Added to wishlist",
+        wishlist: item,
+      },
+      201
+    );
+  } catch (error: any) {
+    console.error("Error adding to wishlist:", error);
+    return apiError(error.message || "Failed to add to wishlist", 500);
+  }
+}
+
+
+--- FILE: src/app/api/dashboard/summary/route.ts ---
+import { NextRequest } from "next/server";
+import { connectDB } from "@/lib/db";
+import { getAuthUserFromRequest } from "@/lib/auth";
+import Enrollment from "@/models/Enrollment";
+import Lesson from "@/models/Lesson";
+import { computeProgress } from "@/lib/progress";
+import { apiError, apiSuccess } from "@/lib/response";
+
+/**
+ * GET /api/dashboard/summary
+ * Single endpoint returning student learning progress, continue learning target, and purchase history.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      return apiError("Authentication required.", 401);
+    }
+
+    await connectDB();
+
+    // Fetch all user enrollments populated with course details
+    const enrollments = await Enrollment.find({ user: user._id })
+      .populate({
+        path: "course",
+        populate: { path: "category", select: "name slug" },
+      })
+      .sort({ updatedAt: -1 });
+
+    const paidEnrollments = enrollments.filter(
+      (e) => e.paymentStatus === "Paid" && e.course && (e.course as any).isPublished
+    );
+
+    // Compute progress for each paid enrollment
+    const enrollmentSummaries = await Promise.all(
+      paidEnrollments.map(async (e) => {
+        const courseId = (e.course as any)._id;
+        const totalLessons = await Lesson.countDocuments({ course: courseId });
+        const completedCount = e.completedLessons ? e.completedLessons.length : 0;
+        const progressPercent = computeProgress(completedCount, totalLessons);
+
+        // Find next incomplete lesson
+        let nextLessonId: string | null = null;
+        if (totalLessons > 0) {
+          const lessons = await Lesson.find({ course: courseId }).sort({ order: 1 });
+          const completedSet = new Set((e.completedLessons || []).map((id) => id.toString()));
+          const incomplete = lessons.find((l) => !completedSet.has(l._id.toString()));
+          nextLessonId = incomplete ? incomplete._id.toString() : lessons[0]._id.toString();
+        }
+
+        return {
+          _id: e._id,
+          course: e.course,
+          progressPercent,
+          completedLessonsCount: completedCount,
+          totalLessons,
+          completedAt: e.completedAt || null,
+          updatedAt: e.updatedAt,
+          enrolledAt: e.enrolledAt,
+          nextLessonId,
+        };
+      })
+    );
+
+    const inProgressCount = enrollmentSummaries.filter(
+      (s) => s.progressPercent > 0 && s.progressPercent < 100
+    ).length;
+    const completedCount = enrollmentSummaries.filter(
+      (s) => s.progressPercent === 100
+    ).length;
+
+    // Pick most recently updated incomplete/active enrollment for "Continue Learning"
+    const continueLearningTarget =
+      enrollmentSummaries.find((s) => s.progressPercent < 100) ||
+      enrollmentSummaries[0] ||
+      null;
+
+    // Purchase history (all user enrollments)
+    const purchaseHistory = enrollments.map((e) => ({
+      _id: e._id,
+      courseTitle: (e.course as any)?.title || "Course",
+      courseId: (e.course as any)?._id || "",
+      amount: e.amount || 0,
+      paymentStatus: e.paymentStatus,
+      enrolledAt: e.enrolledAt,
+      isCompleted: Boolean(e.completedAt),
+    }));
+
+    return apiSuccess({
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      stats: {
+        totalEnrolled: enrollmentSummaries.length,
+        inProgressCount,
+        completedCount,
+      },
+      enrollments: enrollmentSummaries,
+      continueLearning: continueLearningTarget,
+      purchaseHistory,
+    });
+  } catch (error: any) {
+    console.error("Error fetching dashboard summary:", error);
+    return apiError(error.message || "Failed to load student dashboard", 500);
+  }
+}
+
+
+--- FILE: src/app/api/admin/analytics/route.ts ---
+import { NextRequest } from "next/server";
+import { connectDB } from "@/lib/db";
+import { getAuthUserFromRequest } from "@/lib/auth";
+import User from "@/models/User";
+import Course from "@/models/Course";
+import Enrollment from "@/models/Enrollment";
+import { getLast12MonthsData } from "@/lib/analytics";
+import { apiError, apiSuccess } from "@/lib/response";
+
+/**
+ * GET /api/admin/analytics
+ * Returns overall revenue metrics, monthly trends, and top selling courses.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user || user.role !== "admin") {
+      return apiError("Admin authentication required.", 403);
+    }
+
+    await connectDB();
+
+    // 1. Monthly Signups (User registrations)
+    const monthlySignups = await getLast12MonthsData(User, "createdAt");
+
+    // 2. Monthly Paid Enrollments & Revenue
+    const monthlyEnrollments = await getLast12MonthsData(Enrollment, "enrolledAt", {
+      paymentStatus: "Paid",
+    });
+
+    // 3. Overall Totals
+    const [totalUsers, totalCourses, paidEnrollmentsCount, revenueResult] = await Promise.all([
+      User.countDocuments(),
+      Course.countDocuments(),
+      Enrollment.countDocuments({ paymentStatus: "Paid" }),
+      Enrollment.aggregate([
+        { $match: { paymentStatus: "Paid" } },
+        { $group: { _id: null, totalRevenue: { $sum: "$amount" } } },
+      ]),
+    ]);
+
+    const totalRevenue =
+      revenueResult.length > 0 ? Math.round(revenueResult[0].totalRevenue * 100) / 100 : 0;
+
+    // 4. Top 5 Courses by Paid Enrollments
+    const topCoursesAggregate = await Enrollment.aggregate([
+      { $match: { paymentStatus: "Paid" } },
+      {
+        $group: {
+          _id: "$course",
+          enrollmentsCount: { $sum: 1 },
+          totalRevenue: { $sum: "$amount" },
+        },
+      },
+      { $sort: { enrollmentsCount: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: "courses",
+          localField: "_id",
+          foreignField: "_id",
+          as: "courseInfo",
+        },
+      },
+      { $unwind: "$courseInfo" },
+      {
+        $project: {
+          _id: 1,
+          enrollmentsCount: 1,
+          totalRevenue: 1,
+          title: "$courseInfo.title",
+          price: "$courseInfo.price",
+          instructor: "$courseInfo.instructor",
+          isPublished: "$courseInfo.isPublished",
+        },
+      },
+    ]);
+
+    return apiSuccess({
+      totals: {
+        totalRevenue,
+        totalEnrollments: paidEnrollmentsCount,
+        totalUsers,
+        totalCourses,
+      },
+      monthlySignups,
+      monthlyEnrollments,
+      topCourses: topCoursesAggregate,
+    });
+  } catch (error: any) {
+    console.error("Error generating admin analytics:", error);
+    return apiError(error.message || "Failed to generate analytics", 500);
   }
 }
 
@@ -2061,678 +4065,557 @@ export async function GET(req: NextRequest) {
 }
 
 
---- FILE: src/app/api/lessons/[id]/route.ts ---
-import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
+--- FILE: src/app/api/admin/questions/route.ts ---
+import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import Lesson from "@/models/Lesson";
 import { getAuthUserFromRequest } from "@/lib/auth";
-import { requireAdmin } from "@/lib/adminGuard";
+import Question from "@/models/Question";
 import { apiError, apiSuccess } from "@/lib/response";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+/**
+ * GET /api/admin/questions
+ * Returns all student questions across all courses for admin moderation and replies.
+ */
+export async function GET(req: NextRequest) {
   try {
-    const { id } = await params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return apiError("Lesson not found", 404);
+    const user = await getAuthUserFromRequest(req);
+    if (!user || user.role !== "admin") {
+      return apiError("Admin authentication required.", 403);
     }
 
     await connectDB();
 
-    const lesson = await Lesson.findById(id).populate("course", "title slug isPublished");
-    if (!lesson) {
-      return apiError("Lesson not found", 404);
-    }
-
-    const authUser = await getAuthUserFromRequest(req);
-    const isAdmin = authUser?.role === "admin";
-
-    const lessonObj = lesson.toObject();
-    if (!isAdmin && !lessonObj.isPreview) {
-      lessonObj.videoUrl = "";
-    }
-
-    return apiSuccess({ lesson: lessonObj });
-  } catch (error: any) {
-    return apiError(error.message || "Failed to fetch lesson", 500);
-  }
-}
-
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const authResult = await requireAdmin(req);
-    if (authResult instanceof NextResponse) return authResult;
-
-    const { id } = await params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return apiError("Invalid lesson ID", 400);
-    }
-
-    const body = await req.json();
-    const updateData: Record<string, any> = {};
-
-    if (body.title !== undefined) {
-      if (typeof body.title !== "string" || !body.title.trim()) {
-        return apiError("Lesson title cannot be empty", 400);
-      }
-      updateData.title = body.title.trim();
-    }
-
-    if (body.order !== undefined) {
-      const orderNum = Number(body.order);
-      if (isNaN(orderNum) || orderNum < 1) {
-        return apiError("Order must be a positive number", 400);
-      }
-      updateData.order = orderNum;
-    }
-
-    if (body.isPreview !== undefined) {
-      updateData.isPreview = Boolean(body.isPreview);
-    }
-
-    await connectDB();
-
-    const updatedLesson = await Lesson.findByIdAndUpdate(
-      id,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedLesson) {
-      return apiError("Lesson not found", 404);
-    }
-
-    return apiSuccess({ lesson: updatedLesson });
-  } catch (error: any) {
-    return apiError(error.message || "Failed to update lesson", 500);
-  }
-}
-
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const authResult = await requireAdmin(req);
-    if (authResult instanceof NextResponse) return authResult;
-
-    const { id } = await params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return apiError("Invalid lesson ID", 400);
-    }
-
-    await connectDB();
-
-    const lesson = await Lesson.findByIdAndDelete(id);
-    if (!lesson) {
-      return apiError("Lesson not found", 404);
-    }
-
-    return apiSuccess({ message: "Lesson deleted successfully" });
-  } catch (error: any) {
-    return apiError(error.message || "Failed to delete lesson", 500);
-  }
-}
-
-
---- FILE: src/app/api/lessons/[id]/video/route.ts ---
-import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
-import { connectDB } from "@/lib/db";
-import Lesson from "@/models/Lesson";
-import { requireAdmin } from "@/lib/adminGuard";
-import { apiError, apiSuccess } from "@/lib/response";
-import { uploadVideo, VideoUploadError } from "@/lib/videoUpload";
-
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const authResult = await requireAdmin(req);
-    if (authResult instanceof NextResponse) return authResult;
-
-    const { id } = await params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return apiError("Invalid lesson ID", 400);
-    }
-
-    await connectDB();
-
-    const lesson = await Lesson.findById(id);
-    if (!lesson) {
-      return apiError("Lesson not found", 404);
-    }
-
-    const formData = await req.formData();
-    const videoFile = formData.get("video") as File | null;
-
-    if (!videoFile || !(videoFile instanceof File) || videoFile.size === 0) {
-      return apiError("A valid video file is required", 400);
-    }
-
-    let uploadResult;
-    try {
-      uploadResult = await uploadVideo(videoFile);
-    } catch (uploadErr: any) {
-      if (uploadErr instanceof VideoUploadError) {
-        return apiError(uploadErr.message, uploadErr.statusCode);
-      }
-      return apiError(uploadErr.message || "Video upload failed", 500);
-    }
-
-    lesson.videoUrl = uploadResult.url;
-    await lesson.save();
+    const questions = await Question.find()
+      .populate("user", "name email")
+      .populate("course", "title slug")
+      .populate("lesson", "title order")
+      .populate("replies.user", "name")
+      .sort({ createdAt: -1 });
 
     return apiSuccess({
-      message: "Lesson video updated successfully",
-      lesson,
+      questions,
+      count: questions.length,
     });
   } catch (error: any) {
-    return apiError(error.message || "Failed to update lesson video", 500);
+    console.error("Error fetching admin questions queue:", error);
+    return apiError(error.message || "Failed to fetch admin questions", 500);
   }
 }
 
 
-## LEVEL 4: UI COMPONENTS, SCREENS & STYLING
+--- FILE: src/app/api/admin/users/route.ts ---
+import { NextRequest, NextResponse } from "next/server";
+import { connectDB } from "@/lib/db";
+import User from "@/models/User";
+import Enrollment from "@/models/Enrollment";
+import { requireAdmin } from "@/lib/adminGuard";
+import { apiError, apiSuccess } from "@/lib/response";
 
---- FILE: src/app/globals.css ---
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/**
+ * GET /api/admin/users
+ * Returns a paginated, searchable list of users with enrollment counts.
+ * Requires Admin authentication.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const authResult = await requireAdmin(req);
+    if (authResult instanceof NextResponse) return authResult;
 
-:root {
-  --background: #faf8f6;
-  --foreground: #221b20;
-  --muted: #7a7078;
-  --border: #e8e1e4;
-  --surface: #ffffff;
-  --primary: #6b2d5c;
-  --primary-dark: #4f2144;
-  --primary-tint: #f3e8f0;
-  --gold: #c9972a;
-  --gold-tint: #faf1dd;
-  --green: #2e8b57;
-  --green-tint: #e6f4ec;
-  --red: #c0392b;
-  --red-tint: #fbe9e7;
+    await connectDB();
+
+    const { searchParams } = new URL(req.url);
+    const keyword = searchParams.get("keyword")?.trim();
+    const role = searchParams.get("role")?.trim();
+    const status = searchParams.get("status")?.trim();
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
+
+    const query: Record<string, any> = {};
+
+    // Keyword search on name or email
+    if (keyword) {
+      query.$or = [
+        { name: { $regex: keyword, $options: "i" } },
+        { email: { $regex: keyword, $options: "i" } },
+      ];
+    }
+
+    // Role filter
+    if (role && (role === "student" || role === "admin")) {
+      query.role = role;
+    }
+
+    // Active status filter
+    if (status === "active") {
+      query.isActive = true;
+    } else if (status === "suspended") {
+      query.isActive = false;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const total = await User.countDocuments(query);
+    const rawUsers = await User.find(query)
+      .select("-password")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Compute enrollmentCount for each user on this page
+    const users = await Promise.all(
+      rawUsers.map(async (u) => {
+        const enrollmentCount = await Enrollment.countDocuments({
+          user: u._id,
+        });
+        const userObj = u.toObject();
+        return {
+          ...userObj,
+          enrollmentCount,
+        };
+      })
+    );
+
+    const pages = Math.ceil(total / limit) || 1;
+
+    return apiSuccess({
+      users,
+      total,
+      page,
+      pages,
+      limit,
+    });
+  } catch (error: any) {
+    console.error("Error fetching admin users:", error);
+    return apiError(error.message || "Failed to fetch users", 500);
+  }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  min-height: 100vh;
+
+--- FILE: src/app/api/cron/cleanup-notifications/route.ts ---
+import { NextRequest } from "next/server";
+import { connectDB } from "@/lib/db";
+import Notification from "@/models/Notification";
+import { apiError, apiSuccess } from "@/lib/response";
+
+/**
+ * GET /api/cron/cleanup-notifications
+ * Cron job to clean up read notifications older than 30 days.
+ * Protected via Authorization: Bearer ${CRON_SECRET}
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get("authorization");
+    const cronSecret = process.env.CRON_SECRET || "dev_cron_secret_key_123";
+
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return apiError("Unauthorized cron invocation", 401);
+    }
+
+    await connectDB();
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const result = await Notification.deleteMany({
+      isRead: true,
+      createdAt: { $lt: thirtyDaysAgo },
+    });
+
+    return apiSuccess({
+      message: "Notification cleanup completed successfully",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error: any) {
+    console.error("Error running notification cleanup cron:", error);
+    return apiError(error.message || "Cron execution failed", 500);
+  }
 }
 
-/* Glassmorphism & Cards */
-.card-surface {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  box-shadow: 0 4px 20px -2px rgba(107, 45, 92, 0.05);
-}
 
-.card-surface-hover {
-  transition: all 0.2s ease-in-out;
-}
-.card-surface-hover:hover {
-  border-color: rgba(107, 45, 92, 0.3);
-  box-shadow: 0 10px 25px -5px rgba(107, 45, 92, 0.1);
-  transform: translateY(-2px);
-}
-
-
---- FILE: src/app/page.tsx ---
+--- FILE: src/components/Navbar.tsx ---
 "use client";
 
-import React, { useEffect, useState, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import NotificationBell from "@/components/NotificationBell";
 import {
-  Search,
-  Filter,
+  GraduationCap,
+  LogOut,
+  LayoutDashboard,
+  Shield,
   BookOpen,
   User,
-  GraduationCap,
-  Sparkles,
-  ArrowRight,
-  RotateCcw,
-  SlidersHorizontal,
-  Layers,
+  Heart,
 } from "lucide-react";
 
-interface Category {
-  _id: string;
-  name: string;
-  slug: string;
-}
-
-interface Course {
-  _id: string;
-  title: string;
-  slug: string;
-  description: string;
-  category: {
-    _id: string;
-    name: string;
-    slug: string;
-  };
-  instructor: string;
-  level: "Beginner" | "Intermediate" | "Advanced";
-  price: number;
-  thumbnailUrl?: string;
-  isPublished: boolean;
-  createdAt: string;
-}
-
-function CatalogContent() {
+export default function Navbar() {
+  const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { user, loading, isAuthenticated, isAdmin, logout } = useAuth();
 
-  const urlKeyword = searchParams.get("keyword") || "";
-  const urlCategory = searchParams.get("category") || "";
-  const urlLevel = searchParams.get("level") || "";
-
-  const [keywordInput, setKeywordInput] = useState(urlKeyword);
-  const [selectedCategory, setSelectedCategory] = useState(urlCategory);
-  const [selectedLevel, setSelectedLevel] = useState(urlLevel);
-
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [categoriesLoading, setCategoriesLoading] = useState<boolean>(true);
-
-  // Sync state if URL changes externally
-  useEffect(() => {
-    setKeywordInput(urlKeyword);
-    setSelectedCategory(urlCategory);
-    setSelectedLevel(urlLevel);
-  }, [urlKeyword, urlCategory, urlLevel]);
-
-  // Fetch categories
-  useEffect(() => {
-    async function loadCategories() {
-      try {
-        setCategoriesLoading(true);
-        const res = await fetch("/api/categories");
-        const data = await res.json();
-        if (data.success && Array.isArray(data.categories)) {
-          setCategories(data.categories);
-        }
-      } catch (err) {
-        console.error("Error fetching categories:", err);
-      } finally {
-        setCategoriesLoading(false);
-      }
-    }
-    loadCategories();
-  }, []);
-
-  // Fetch courses whenever query params change
-  const fetchCourses = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (urlKeyword) params.set("keyword", urlKeyword);
-      if (urlCategory) params.set("category", urlCategory);
-      if (urlLevel) params.set("level", urlLevel);
-
-      const queryString = params.toString() ? `?${params.toString()}` : "";
-      const res = await fetch(`/api/courses${queryString}`, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.courses)) {
-        setCourses(data.courses);
-      } else {
-        setCourses([]);
-      }
-    } catch (err) {
-      console.error("Error fetching courses:", err);
-      setCourses([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [urlKeyword, urlCategory, urlLevel]);
-
-  useEffect(() => {
-    fetchCourses();
-  }, [fetchCourses]);
-
-  const updateFilters = (newKeyword?: string, newCat?: string, newLvl?: string) => {
-    const params = new URLSearchParams();
-    const k = newKeyword !== undefined ? newKeyword : keywordInput;
-    const c = newCat !== undefined ? newCat : selectedCategory;
-    const l = newLvl !== undefined ? newLvl : selectedLevel;
-
-    if (k.trim()) params.set("keyword", k.trim());
-    if (c) params.set("category", c);
-    if (l) params.set("level", l);
-
-    const queryString = params.toString();
-    router.push(queryString ? `/?${queryString}` : "/");
-  };
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateFilters(keywordInput, undefined, undefined);
-  };
-
-  const handleCategoryChange = (catId: string) => {
-    setSelectedCategory(catId);
-    updateFilters(undefined, catId, undefined);
-  };
-
-  const handleLevelChange = (lvl: string) => {
-    setSelectedLevel(lvl);
-    updateFilters(undefined, undefined, lvl);
-  };
-
-  const resetAllFilters = () => {
-    setKeywordInput("");
-    setSelectedCategory("");
-    setSelectedLevel("");
+  const handleLogout = async () => {
+    await logout();
     router.push("/");
+    router.refresh();
   };
 
-  const hasActiveFilters = Boolean(urlKeyword || urlCategory || urlLevel);
+  const isActive = (path: string) => {
+    return pathname === path;
+  };
 
   return (
-    <div className="min-h-screen pb-16">
-      {/* Hero / Banner */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-primary-tint/40 via-surface to-background border-b border-border py-12 sm:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary-tint border border-primary/20 text-primary text-xs font-semibold mb-4 shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-gold" />
-              <span>Explore Top Tech & Business Programs</span>
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-surface/90 backdrop-blur-md transition-all print:hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        {/* Brand Logo */}
+        <div className="flex items-center gap-8">
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 group focus:outline-none"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-md shadow-primary/20 group-hover:bg-primary-dark transition-colors">
+              <GraduationCap className="w-6 h-6 text-gold" />
             </div>
-
-            <h1 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight leading-tight">
-              Master New Skills with{" "}
-              <span className="text-primary underline decoration-gold/40 decoration-4 underline-offset-8">
-                Industry Experts
+            <div className="flex flex-col">
+              <span className="font-bold text-lg text-primary tracking-tight leading-none group-hover:text-primary-dark transition-colors">
+                EduPulse
               </span>
-            </h1>
-
-            <p className="mt-4 text-base sm:text-lg text-muted max-w-2xl mx-auto">
-              Discover accredited courses designed to accelerate your career.
-              Learn at your own pace with hands-on projects and verified credentials.
-            </p>
-
-            {/* Search and Filters Bar */}
-            <div className="mt-8 max-w-2xl mx-auto">
-              <form
-                onSubmit={handleSearchSubmit}
-                className="flex flex-col sm:flex-row items-center gap-2 bg-surface p-2 rounded-2xl border border-border shadow-lg shadow-primary/5 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all"
-              >
-                <div className="relative flex-1 w-full flex items-center">
-                  <Search className="w-5 h-5 text-muted absolute left-3.5 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={keywordInput}
-                    onChange={(e) => setKeywordInput(e.target.value)}
-                    placeholder="Search courses by title (e.g. React, Python)..."
-                    className="w-full pl-11 pr-4 py-2.5 text-sm bg-transparent text-foreground placeholder:text-muted/70 focus:outline-none"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 active:scale-[0.98]"
-                >
-                  <Search className="w-4 h-4" />
-                  <span>Search</span>
-                </button>
-              </form>
+              <span className="text-[11px] font-semibold text-gold tracking-widest uppercase mt-0.5">
+                Academy
+              </span>
             </div>
-          </div>
-        </div>
-      </section>
+          </Link>
 
-      {/* Main Catalog Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        {/* Filters Controls Row */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-6 border-b border-border">
-          {/* Category Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto w-full pb-2 lg:pb-0 scrollbar-none">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-1.5 shrink-0 mr-1">
-              <Filter className="w-3.5 h-3.5 text-primary" />
-              Category:
-            </span>
-
-            <button
-              onClick={() => handleCategoryChange("")}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                !selectedCategory
-                  ? "bg-primary text-white shadow-sm shadow-primary/25"
-                  : "bg-surface border border-border text-muted hover:text-foreground hover:bg-black/5"
+          {/* Navigation Links */}
+          <nav className="hidden md:flex items-center space-x-1">
+            <Link
+              href="/"
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                isActive("/")
+                  ? "bg-primary-tint text-primary font-semibold"
+                  : "text-muted hover:text-foreground hover:bg-black/5"
               }`}
             >
-              All Categories
-            </button>
-
-            {categories.map((cat) => (
-              <button
-                key={cat._id}
-                onClick={() => handleCategoryChange(cat._id)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                  selectedCategory === cat._id
-                    ? "bg-primary text-white shadow-sm shadow-primary/25"
-                    : "bg-surface border border-border text-muted hover:text-foreground hover:bg-black/5"
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Level Filter & Reset */}
-          <div className="flex items-center gap-3 shrink-0 self-end lg:self-center">
-            <div className="flex items-center gap-1.5 bg-surface border border-border rounded-xl px-2.5 py-1.5 shadow-sm">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-muted" />
-              <select
-                value={selectedLevel}
-                onChange={(e) => handleLevelChange(e.target.value)}
-                className="bg-transparent text-xs font-medium text-foreground focus:outline-none cursor-pointer pr-1"
-              >
-                <option value="">All Levels</option>
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Advanced">Advanced</option>
-              </select>
-            </div>
-
-            {hasActiveFilters && (
-              <button
-                onClick={resetAllFilters}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-muted hover:text-primary hover:bg-primary-tint transition-all"
-                title="Reset all filters"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Results Counter */}
-        <div className="py-4 flex items-center justify-between">
-          <p className="text-xs text-muted font-medium">
-            {loading ? (
-              "Searching courses..."
-            ) : (
+              Courses
+            </Link>
+            {isAuthenticated && (
               <>
-                Showing <strong className="text-foreground">{courses.length}</strong>{" "}
-                {courses.length === 1 ? "course" : "courses"}
-                {hasActiveFilters && " for current filters"}
+                <Link
+                  href="/my-courses"
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                    isActive("/my-courses")
+                      ? "bg-primary-tint text-primary font-semibold"
+                      : "text-muted hover:text-foreground hover:bg-black/5"
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4" />
+                  My Courses
+                </Link>
+
+                <Link
+                  href="/wishlist"
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                    isActive("/wishlist")
+                      ? "bg-primary-tint text-primary font-semibold"
+                      : "text-muted hover:text-foreground hover:bg-black/5"
+                  }`}
+                >
+                  <Heart className="w-4 h-4 text-red-400" />
+                  Wishlist
+                </Link>
               </>
             )}
-          </p>
+            <Link
+              href="/dashboard"
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                isActive("/dashboard")
+                  ? "bg-primary-tint text-primary font-semibold"
+                  : "text-muted hover:text-foreground hover:bg-black/5"
+              }`}
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Dashboard
+            </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                  pathname.startsWith("/admin")
+                    ? "bg-gold-tint text-gold font-semibold"
+                    : "text-muted hover:text-foreground hover:bg-black/5"
+                }`}
+              >
+                <Shield className="w-4 h-4 text-gold" />
+                Admin Portal
+              </Link>
+            )}
+          </nav>
         </div>
 
-        {/* Course Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className="card-surface overflow-hidden p-4 flex flex-col gap-4 animate-pulse"
-              >
-                <div className="w-full h-44 bg-gray-200/80 rounded-xl" />
-                <div className="h-4 bg-gray-200/80 rounded-md w-1/3" />
-                <div className="h-6 bg-gray-200/80 rounded-md w-4/5" />
-                <div className="h-10 bg-gray-200/80 rounded-md w-full" />
-                <div className="mt-auto flex justify-between items-center pt-2 border-t border-border/60">
-                  <div className="h-4 bg-gray-200/80 rounded-md w-1/4" />
-                  <div className="h-6 bg-gray-200/80 rounded-md w-1/4" />
+        {/* Right Side: Auth / User State */}
+        <div className="flex items-center gap-3">
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <div className="w-20 h-8 bg-gray-200/60 animate-pulse rounded-lg" />
+            </div>
+          ) : isAuthenticated && user ? (
+            <div className="flex items-center gap-3">
+              {/* Notification Bell Component */}
+              <NotificationBell />
+
+              {isAdmin && (
+                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-gold-tint text-gold border border-gold/30">
+                  <Shield className="w-3 h-3" />
+                  Admin
+                </span>
+              )}
+
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary-tint/60 border border-primary/10">
+                <div className="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                  {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                </div>
+                <div className="hidden sm:flex flex-col text-left pr-1">
+                  <span className="text-xs font-semibold text-foreground leading-tight max-w-[120px] truncate">
+                    {user.name}
+                  </span>
+                  <span className="text-[10px] text-muted capitalize leading-none">
+                    {user.role}
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-        ) : courses.length === 0 ? (
-          /* Empty State */
-          <div className="card-surface p-12 text-center my-8 max-w-lg mx-auto">
-            <div className="w-16 h-16 rounded-2xl bg-primary-tint text-primary mx-auto flex items-center justify-center mb-4">
-              <BookOpen className="w-8 h-8 text-gold" />
-            </div>
-            <h3 className="text-lg font-bold text-foreground mb-1">
-              No courses found
-            </h3>
-            <p className="text-sm text-muted mb-6">
-              We couldn&apos;t find any published courses matching your current search
-              or filter criteria.
-            </p>
-            {hasActiveFilters && (
+
               <button
-                onClick={resetAllFilters}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-semibold shadow-md shadow-primary/20 transition-all"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-muted hover:text-red hover:bg-red-tint rounded-lg transition-colors border border-transparent hover:border-red/20"
+                title="Sign out"
               >
-                <RotateCcw className="w-4 h-4" />
-                <span>Clear All Filters</span>
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Sign out</span>
               </button>
-            )}
-          </div>
-        ) : (
-          /* Course Cards */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-            {courses.map((course) => (
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
               <Link
-                key={course._id}
-                href={`/courses/${course._id}`}
-                className="group card-surface overflow-hidden flex flex-col card-surface-hover hover:border-primary/30"
+                href="/login"
+                className="px-4 py-2 text-sm font-medium text-primary hover:text-primary-dark hover:bg-primary-tint/70 rounded-lg transition-all"
               >
-                {/* Thumbnail / Header */}
-                <div className="relative w-full h-48 bg-primary-tint/50 overflow-hidden flex items-center justify-center">
-                  {course.thumbnailUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={course.thumbnailUrl}
-                      alt={course.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                    />
-                  ) : null}
-
-                  {/* Fallback pattern when no thumbnail */}
-                  {!course.thumbnailUrl && (
-                    <div className="flex flex-col items-center gap-2 text-primary/70 group-hover:scale-105 transition-transform duration-300">
-                      <GraduationCap className="w-12 h-12 text-gold" />
-                      <span className="text-xs font-bold tracking-wider uppercase text-primary/60">
-                        {course.category?.name || "Course"}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Badges Overlays */}
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                    {course.category && (
-                      <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-surface/90 backdrop-blur-md text-primary shadow-sm border border-border">
-                        {course.category.name}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="absolute top-3 right-3">
-                    <span
-                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase tracking-wider shadow-sm ${
-                        course.level === "Beginner"
-                          ? "bg-green-tint text-green border border-green/30"
-                          : course.level === "Intermediate"
-                          ? "bg-gold-tint text-gold border border-gold/30"
-                          : "bg-red-tint text-red border border-red/30"
-                      }`}
-                    >
-                      {course.level}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Card Body */}
-                <div className="p-5 flex-1 flex flex-col">
-                  <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug mb-2">
-                    {course.title}
-                  </h3>
-
-                  <p className="text-xs text-muted line-clamp-2 leading-relaxed mb-4">
-                    {course.description}
-                  </p>
-
-                  <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-muted font-medium">
-                      <div className="w-6 h-6 rounded-full bg-primary-tint text-primary flex items-center justify-center font-bold text-[10px]">
-                        {course.instructor.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="truncate max-w-[120px]">
-                        {course.instructor}
-                      </span>
-                    </div>
-
-                    <div className="text-right">
-                      {course.price === 0 ? (
-                        <span className="text-sm font-extrabold text-green">
-                          Free
-                        </span>
-                      ) : (
-                        <span className="text-base font-extrabold text-foreground">
-                          ${course.price.toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                Sign in
               </Link>
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
+              <Link
+                href="/register"
+                className="px-4 py-2 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-lg shadow-sm shadow-primary/20 hover:shadow-md transition-all active:scale-[0.98]"
+              >
+                Register
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
   );
 }
 
-export default function HomePage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
+
+--- FILE: src/components/NotificationBell.tsx ---
+"use client";
+
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import {
+  Bell,
+  CheckCheck,
+  BookOpen,
+  HelpCircle,
+  MessageSquare,
+  Loader2,
+} from "lucide-react";
+
+interface NotificationItem {
+  _id: string;
+  type: "new_enrollment" | "new_question" | "question_reply";
+  message: string;
+  link: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+function getRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return date.toLocaleDateString();
+}
+
+export default function NotificationBell() {
+  const { isAuthenticated } = useAuth();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const res = await fetch("/api/notifications", { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
       }
-    >
-      <CatalogContent />
-    </Suspense>
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    }
+  }, [isAuthenticated]);
+
+  // Poll every 30 seconds
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchNotifications();
+
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, fetchNotifications]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleMarkAsRead = async (id: string, link: string) => {
+    try {
+      await fetch(`/api/notifications/${id}`, { method: "PUT" });
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (e) {
+      console.error("Failed to mark notification read:", e);
+    } finally {
+      setIsOpen(false);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      setLoading(true);
+      await fetch("/api/notifications/read-all", { method: "PUT" });
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (e) {
+      console.error("Failed to mark all read:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isAuthenticated) return null;
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      {/* Bell Icon Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-black/5 transition relative"
+        title="Notifications"
+      >
+        <Bell className="w-4 h-4" />
+        {unreadCount > 0 && (
+          <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-red text-white text-[10px] font-black flex items-center justify-center shadow-sm">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {/* Dropdown Panel */}
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-surface border border-border rounded-2xl shadow-2xl z-50 overflow-hidden space-y-2 animate-in fade-in slide-in-from-top-2">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-primary" />
+              <h3 className="text-xs font-extrabold text-foreground">
+                Notifications
+              </h3>
+              {unreadCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-primary-tint text-primary text-[10px] font-bold">
+                  {unreadCount} unread
+                </span>
+              )}
+            </div>
+
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                disabled={loading}
+                className="text-[11px] font-semibold text-primary hover:text-primary-dark flex items-center gap-1 transition"
+              >
+                {loading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <CheckCheck className="w-3.5 h-3.5" />
+                )}
+                <span>Mark all read</span>
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-80 overflow-y-auto divide-y divide-border">
+            {notifications.length === 0 ? (
+              <div className="p-6 text-center text-xs text-muted">
+                No notifications yet.
+              </div>
+            ) : (
+              notifications.map((n) => (
+                <Link
+                  key={n._id}
+                  href={n.link}
+                  onClick={() => handleMarkAsRead(n._id, n.link)}
+                  className={`p-3.5 flex items-start gap-3 text-xs transition-colors block ${
+                    n.isRead
+                      ? "hover:bg-black/5 opacity-75"
+                      : "bg-primary-tint/30 hover:bg-primary-tint/50 font-medium"
+                  }`}
+                >
+                  <div className="p-2 rounded-xl bg-surface border border-border text-primary shrink-0 mt-0.5">
+                    {n.type === "new_enrollment" && <BookOpen className="w-3.5 h-3.5 text-green" />}
+                    {n.type === "new_question" && <HelpCircle className="w-3.5 h-3.5 text-gold" />}
+                    {n.type === "question_reply" && <MessageSquare className="w-3.5 h-3.5 text-primary" />}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-foreground text-xs leading-snug break-words">
+                      {n.message}
+                    </p>
+                    <span className="text-[10px] text-muted block mt-1">
+                      {getRelativeTime(n.createdAt)}
+                    </span>
+                  </div>
+
+                  {!n.isRead && (
+                    <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
+                  )}
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -2844,6 +4727,12 @@ export default function LoginPage() {
                 >
                   Password
                 </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted">
@@ -2853,7 +4742,7 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   required
-                  placeholder="••••••••"
+                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-background/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
@@ -3042,7 +4931,7 @@ export default function RegisterPage() {
                   type="password"
                   required
                   minLength={6}
-                  placeholder="••••••••"
+                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-background/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
@@ -3086,206 +4975,124 @@ export default function RegisterPage() {
 }
 
 
---- FILE: src/app/dashboard/page.tsx ---
+--- FILE: src/app/forgot-password/page.tsx ---
 "use client";
 
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
-import {
-  ShieldCheck,
-  User,
-  Mail,
-  Shield,
-  Key,
-  Calendar,
-  Sparkles,
-  CheckCircle2,
-  Lock,
-  LogOut,
-  GraduationCap,
-  Loader2,
-} from "lucide-react";
+import React, { useState } from "react";
+import Link from "next/link";
+import { GraduationCap, Mail, ArrowLeft, Send, CheckCircle2, Loader2 } from "lucide-react";
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const { user, loading, isAuthenticated, logout } = useAuth();
+export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.replace("/login");
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+
+    try {
+      setSubmitting(true);
+      await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      setSubmitted(true);
+    } catch (err) {
+      console.error("Forgot password submit error:", err);
+      setSubmitted(true);
+    } finally {
+      setSubmitting(false);
     }
-  }, [loading, isAuthenticated, router]);
-
-  if (loading || !isAuthenticated || !user) {
-    return (
-      <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-4 card-surface p-8 max-w-sm text-center shadow-lg">
-          <Loader2 className="w-10 h-10 text-primary animate-spin" />
-          <div>
-            <h2 className="text-base font-bold text-foreground">
-              Verifying Authentication
-            </h2>
-            <p className="text-xs text-muted mt-1">
-              Checking HTTP-Only cookie session tokens...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-      {/* Header Banner */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-tint text-green text-xs font-semibold mb-2 border border-green/30">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Protected Route Access Granted</span>
-          </div>
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
-            User Dashboard
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-6">
+        {/* Brand Logo */}
+        <div className="text-center space-y-2">
+          <Link href="/" className="inline-flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-md shadow-primary/20">
+              <GraduationCap className="w-6 h-6 text-gold" />
+            </div>
+            <span className="font-bold text-xl text-primary">EduPulse</span>
+          </Link>
+          <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+            Forgot Your Password?
           </h1>
-          <p className="text-sm text-muted mt-1">
-            Welcome back, <span className="font-semibold text-primary">{user.name}</span>! Your session is verified.
+          <p className="text-xs text-muted">
+            Enter your account email address and we&apos;ll send you a password reset link.
           </p>
         </div>
 
-        <button
-          onClick={async () => {
-            await logout();
-            router.push("/");
-          }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red/30 bg-red-tint text-red font-semibold text-xs hover:bg-red hover:text-white transition-all self-start sm:self-auto"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Sign Out</span>
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* User Profile Card */}
-        <div className="card-surface p-6 md:col-span-2 shadow-md">
-          <div className="flex items-center gap-4 pb-6 border-b border-border">
-            <div className="w-16 h-16 rounded-2xl bg-primary text-white flex items-center justify-center text-2xl font-black shadow-md shadow-primary/20">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-foreground">{user.name}</h2>
-              <p className="text-xs text-muted flex items-center gap-1.5 mt-0.5">
-                <Mail className="w-3.5 h-3.5" />
-                {user.email}
+        {/* Form Container */}
+        <div className="card-surface p-6 sm:p-8 space-y-6 border border-border shadow-xl">
+          {submitted ? (
+            <div className="text-center space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-green-tint text-green flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <h2 className="text-base font-bold text-foreground">
+                Reset Link Sent
+              </h2>
+              <p className="text-xs text-muted leading-relaxed">
+                If an account exists for <strong className="text-foreground">{email}</strong>, you will receive an email with instructions to reset your password shortly. Check your spam folder if it doesn&apos;t arrive in 2 minutes.
               </p>
-              <div className="mt-2 flex items-center gap-2">
-                <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                    user.role === "admin"
-                      ? "bg-gold-tint text-gold border border-gold/40"
-                      : "bg-primary-tint text-primary border border-primary/30"
-                  }`}
+              <div className="pt-2">
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
                 >
-                  {user.role === "admin" ? (
-                    <Shield className="w-3 h-3" />
-                  ) : (
-                    <User className="w-3 h-3" />
-                  )}
-                  {user.role.toUpperCase()}
-                </span>
-                <span className="text-[11px] text-muted font-mono">
-                  ID: {user._id}
-                </span>
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Return to Sign In</span>
+                </Link>
               </div>
             </div>
-          </div>
-
-          <div className="mt-6 space-y-4">
-            <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-              Account Attributes & Security Details
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl bg-background border border-border">
-                <div className="text-[11px] font-semibold text-muted flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-primary" />
-                  Full Name
-                </div>
-                <div className="text-sm font-bold text-foreground mt-1">
-                  {user.name}
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-background border border-border">
-                <div className="text-[11px] font-semibold text-muted flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-primary" />
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">
                   Email Address
-                </div>
-                <div className="text-sm font-bold text-foreground mt-1 truncate">
-                  {user.email}
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-background border border-border">
-                <div className="text-[11px] font-semibold text-muted flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-gold" />
-                  Assigned Role
-                </div>
-                <div className="text-sm font-bold text-foreground capitalize mt-1">
-                  {user.role}
+                </label>
+                <div className="relative flex items-center">
+                  <Mail className="w-4 h-4 text-muted absolute left-3 pointer-events-none" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary"
+                  />
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-background border border-border">
-                <div className="text-[11px] font-semibold text-muted flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5 text-green" />
-                  Auth Method
-                </div>
-                <div className="text-sm font-bold text-foreground mt-1">
-                  HTTP-Only JWT Cookie
-                </div>
-              </div>
-            </div>
-          </div>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-3 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl shadow-md shadow-primary/20 transition flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                <span>Send Password Reset Link</span>
+              </button>
+            </form>
+          )}
         </div>
 
-        {/* Foundation Status Sidebar */}
-        <div className="space-y-6">
-          <div className="card-surface p-6 shadow-md bg-gradient-to-br from-primary-tint/60 to-surface">
-            <div className="flex items-center gap-2 text-primary font-bold text-sm mb-3">
-              <Sparkles className="w-4 h-4 text-gold" />
-              <span>Foundation Verified</span>
-            </div>
-            <p className="text-xs text-muted leading-relaxed mb-4">
-              Your session cookie is active, validated, and state is preserved across page refreshes.
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-surface/90 border border-border">
-                <span className="text-muted">Mongoose Connection:</span>
-                <span className="font-semibold text-green">Connected</span>
-              </div>
-              <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-surface/90 border border-border">
-                <span className="text-muted">Auth Cookie:</span>
-                <span className="font-semibold text-green font-mono">lms_token</span>
-              </div>
-              <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-surface/90 border border-border">
-                <span className="text-muted">Next Part:</span>
-                <span className="font-semibold text-primary">Part 2: Courses</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="card-surface p-6 shadow-md">
-            <div className="flex items-center gap-2 text-foreground font-bold text-sm mb-3">
-              <GraduationCap className="w-4 h-4 text-primary" />
-              <span>Enrolled Courses</span>
-            </div>
-            <p className="text-xs text-muted mb-4">
-              Course catalog and enrollment features will become active in Part 2 and Part 4.
-            </p>
-            <div className="p-4 rounded-xl border border-dashed border-border text-center bg-background/50">
-              <span className="text-xs text-muted">No enrollments yet</span>
-            </div>
-          </div>
+        {/* Back to Login */}
+        <div className="text-center">
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground font-medium"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Remember your password? Sign in</span>
+          </Link>
         </div>
       </div>
     </div>
@@ -3293,27 +5100,748 @@ export default function DashboardPage() {
 }
 
 
---- FILE: src/app/courses/[id]/page.tsx ---
+--- FILE: src/app/dashboard/page.tsx ---
 "use client";
 
-import React, { useEffect, useState, use } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import {
-  ArrowLeft,
-  User,
   GraduationCap,
   BookOpen,
-  Calendar,
-  Layers,
-  Sparkles,
-  Lock,
-  Play,
-  AlertCircle,
-  Video,
   CheckCircle2,
+  Clock,
+  PlayCircle,
+  Award,
+  Receipt,
+  ArrowRight,
+  Loader2,
+  ShoppingBag,
+  Sparkles,
+  Shield,
+  TrendingUp,
 } from "lucide-react";
 
-interface CourseDetail {
+interface EnrollmentItem {
+  _id: string;
+  course: {
+    _id: string;
+    title: string;
+    description: string;
+    thumbnailUrl?: string;
+    category?: {
+      name: string;
+    };
+    instructor: string;
+  };
+  progressPercent: number;
+  completedLessonsCount: number;
+  totalLessons: number;
+  completedAt?: string;
+  nextLessonId?: string;
+  enrolledAt: string;
+}
+
+interface PurchaseItem {
+  _id: string;
+  courseTitle: string;
+  courseId: string;
+  amount: number;
+  paymentStatus: "Paid" | "Pending" | "Failed";
+  enrolledAt: string;
+  isCompleted: boolean;
+}
+
+interface DashboardSummary {
+  user: {
+    name: string;
+    email: string;
+    role: string;
+  };
+  stats: {
+    totalEnrolled: number;
+    inProgressCount: number;
+    completedCount: number;
+  };
+  enrollments: EnrollmentItem[];
+  continueLearning?: EnrollmentItem | null;
+  purchaseHistory: PurchaseItem[];
+}
+
+export default function StudentDashboardPage() {
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace("/login?redirect=/dashboard");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    async function loadDashboard() {
+      if (!isAuthenticated) return;
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch("/api/dashboard/summary", { cache: "no-store" });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setSummary(data);
+        } else {
+          setError(data.message || "Failed to load dashboard");
+        }
+      } catch (err: any) {
+        setError(err.message || "An unexpected error occurred");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboard();
+  }, [isAuthenticated]);
+
+  if (authLoading || (!isAuthenticated && !authLoading)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto py-16 text-center">
+        <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-3" />
+        <p className="text-sm font-medium text-muted">
+          Loading your learning dashboard...
+        </p>
+      </div>
+    );
+  }
+
+  if (error || !summary) {
+    return (
+      <div className="card-surface p-8 max-w-md mx-auto my-12 text-center text-red">
+        <p className="text-xs font-semibold mb-4">{error || "Failed to load dashboard"}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const { stats, enrollments, continueLearning, purchaseHistory } = summary;
+
+  return (
+    <div className="min-h-screen max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Header Banner */}
+      <div className="card-surface p-6 sm:p-8 bg-gradient-to-r from-primary-tint/60 via-surface to-surface border border-border relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10 relative">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gold-tint text-gold text-xs font-bold uppercase tracking-wider mb-2">
+              <Sparkles className="w-3.5 h-3.5" />
+              Student Workspace
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+              Welcome back, {user?.name || "Student"}! ðŸ‘‹
+            </h1>
+            <p className="text-xs sm:text-sm text-muted mt-1">
+              Track your course progress, continue where you left off, and view certificates.
+            </p>
+          </div>
+
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl shadow-md shadow-primary/20 transition self-start sm:self-auto"
+          >
+            <BookOpen className="w-4 h-4 text-gold" />
+            <span>Explore Catalog</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* KPI Stats Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Total Enrolled */}
+        <div className="card-surface p-5 card-surface-hover">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-muted uppercase tracking-wider">
+              Enrolled Courses
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-primary-tint text-primary flex items-center justify-center">
+              <BookOpen className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
+            {stats.totalEnrolled}
+          </div>
+          <p className="text-[11px] text-muted mt-0.5">Active course licenses</p>
+        </div>
+
+        {/* In Progress */}
+        <div className="card-surface p-5 card-surface-hover">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gold uppercase tracking-wider">
+              In Progress
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-gold-tint text-gold flex items-center justify-center">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-gold">
+            {stats.inProgressCount}
+          </div>
+          <p className="text-[11px] text-muted mt-0.5">Ongoing curriculum tracks</p>
+        </div>
+
+        {/* Completed */}
+        <div className="card-surface p-5 card-surface-hover">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-green uppercase tracking-wider">
+              Completed
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-green-tint text-green flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-green">
+            {stats.completedCount}
+          </div>
+          <p className="text-[11px] text-muted mt-0.5">Certificates earned</p>
+        </div>
+      </div>
+
+      {/* Continue Learning Spotlight Card */}
+      {continueLearning && (
+        <div className="card-surface p-6 bg-gradient-to-r from-primary-tint/30 to-surface border-2 border-primary/30 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+              <PlayCircle className="w-4 h-4 text-gold" />
+              Continue Learning Target
+            </span>
+            <span className="text-xs font-extrabold text-foreground">
+              {continueLearning.progressPercent}% Completed
+            </span>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-1 max-w-2xl">
+              <h2 className="text-lg font-extrabold text-foreground">
+                {continueLearning.course.title}
+              </h2>
+              <p className="text-xs text-muted">
+                Instructor: {continueLearning.course.instructor} â€¢{" "}
+                {continueLearning.completedLessonsCount} of {continueLearning.totalLessons}{" "}
+                lessons finished
+              </p>
+
+              {/* Progress bar */}
+              <div className="w-full h-2.5 bg-black/10 rounded-full overflow-hidden mt-3">
+                <div
+                  className="h-full bg-primary transition-all duration-500 rounded-full"
+                  style={{ width: `${continueLearning.progressPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {continueLearning.nextLessonId && (
+              <Link
+                href={`/learn/${continueLearning.course._id}/${continueLearning.nextLessonId}`}
+                className="px-6 py-3 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl shadow-md shadow-primary/20 inline-flex items-center gap-2 shrink-0 transition"
+              >
+                <span>Resume Next Lesson</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* All Enrolled Courses Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-extrabold text-foreground flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-primary" />
+            <span>My Learning Track</span>
+          </h2>
+        </div>
+
+        {enrollments.length === 0 ? (
+          <div className="card-surface p-12 text-center max-w-md mx-auto">
+            <GraduationCap className="w-12 h-12 text-muted mx-auto mb-3 opacity-40" />
+            <h3 className="text-base font-bold text-foreground mb-1">
+              No enrolled courses yet
+            </h3>
+            <p className="text-xs text-muted mb-6">
+              Browse our course catalog to start learning and earning certificates.
+            </p>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl shadow-md"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span>Browse Catalog</span>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {enrollments.map((item) => {
+              const isFinished = item.progressPercent === 100;
+
+              return (
+                <div
+                  key={item._id}
+                  className="card-surface overflow-hidden flex flex-col border border-border hover:border-primary/30 transition"
+                >
+                  <div className="p-5 flex-1 flex flex-col space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                        {item.course.category?.name || "Course"}
+                      </span>
+                      {isFinished && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-green-tint text-green border border-green/30 flex items-center gap-1">
+                          <CheckCircle2 className="w-2.5 h-2.5" /> Completed
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="text-sm font-bold text-foreground line-clamp-2">
+                      {item.course.title}
+                    </h3>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1 pt-2">
+                      <div className="flex justify-between text-[11px] font-bold">
+                        <span className="text-muted">Progress</span>
+                        <span className="text-foreground">{item.progressPercent}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-black/10 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 rounded-full ${
+                            isFinished ? "bg-green" : "bg-primary"
+                          }`}
+                          style={{ width: `${item.progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="mt-auto pt-4 border-t border-border flex items-center justify-between gap-2">
+                      {isFinished ? (
+                        <Link
+                          href={`/certificate/${item.course._id}`}
+                          className="w-full px-3 py-2 bg-gold-tint hover:bg-gold-tint/80 text-gold border border-gold/30 text-xs font-bold rounded-xl text-center flex items-center justify-center gap-1.5 transition"
+                        >
+                          <Award className="w-3.5 h-3.5" />
+                          <span>Get Certificate</span>
+                        </Link>
+                      ) : (
+                        item.nextLessonId && (
+                          <Link
+                            href={`/learn/${item.course._id}/${item.nextLessonId}`}
+                            className="w-full px-3 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl text-center flex items-center justify-center gap-1.5 transition shadow-sm"
+                          >
+                            <PlayCircle className="w-3.5 h-3.5" />
+                            <span>Continue Course</span>
+                          </Link>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Purchase & Receipt History */}
+      <div className="card-surface overflow-hidden">
+        <div className="p-5 border-b border-border flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-emerald-400" />
+              <span>Purchase & License History</span>
+            </h2>
+            <p className="text-xs text-muted">
+              Receipts and order logs for your enrolled courses
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-primary-tint/30 text-muted uppercase font-bold text-[10px] tracking-wider border-b border-border">
+              <tr>
+                <th className="py-3.5 px-4">Course</th>
+                <th className="py-3.5 px-4">Date</th>
+                <th className="py-3.5 px-4">Amount</th>
+                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {purchaseHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-muted">
+                    No transactions recorded.
+                  </td>
+                </tr>
+              ) : (
+                purchaseHistory.map((p) => (
+                  <tr key={p._id} className="hover:bg-primary-tint/20 transition-colors">
+                    <td className="py-3.5 px-4 font-semibold text-foreground max-w-xs truncate">
+                      {p.courseTitle}
+                    </td>
+                    <td className="py-3.5 px-4 text-muted">
+                      {new Date(p.enrolledAt).toLocaleDateString()}
+                    </td>
+                    <td className="py-3.5 px-4 font-bold text-foreground">
+                      {p.amount === 0 ? "Free" : `$${p.amount.toFixed(2)}`}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-tint text-green border border-green/30">
+                        {p.paymentStatus}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      {p.isCompleted ? (
+                        <Link
+                          href={`/certificate/${p.courseId}`}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-gold hover:underline"
+                        >
+                          <Award className="w-3.5 h-3.5" />
+                          <span>Certificate</span>
+                        </Link>
+                      ) : (
+                        <span className="text-muted text-[11px]">Enrolled</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+--- FILE: src/app/my-courses/page.tsx ---
+"use client";
+
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import {
+  GraduationCap,
+  PlayCircle,
+  BookOpen,
+  ArrowRight,
+  Loader2,
+  Calendar,
+  Award,
+} from "lucide-react";
+import { computeProgress } from "@/lib/progress";
+
+interface EnrolledCourse {
+  _id: string;
+  title: string;
+  slug: string;
+  thumbnailUrl?: string;
+  price: number;
+  instructor?: string;
+  category?: {
+    _id: string;
+    name: string;
+  };
+}
+
+interface EnrollmentRecord {
+  _id: string;
+  course: EnrolledCourse;
+  amount: number;
+  paymentStatus: "Pending" | "Paid";
+  completedLessons?: string[];
+  completedAt?: string | null;
+  enrolledAt: string;
+}
+
+export default function MyCoursesPage() {
+  const router = useRouter();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const [enrollments, setEnrollments] = useState<EnrollmentRecord[]>([]);
+  const [courseLessonsCountMap, setCourseLessonsCountMap] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Redirect to login if unauthenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push("/login?redirect=/my-courses");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    async function fetchMyEnrollments() {
+      if (!isAuthenticated) return;
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch("/api/enrollments/me", { cache: "no-store" });
+        const data = await res.json();
+
+        if (res.ok && data.success && Array.isArray(data.enrollments)) {
+          // Filter only Paid enrollments for My Courses view
+          const paidEnrollments = data.enrollments.filter(
+            (e: EnrollmentRecord) => e.paymentStatus === "Paid" && e.course
+          );
+          setEnrollments(paidEnrollments);
+
+          // Fetch lesson counts for each enrolled course
+          const counts: Record<string, number> = {};
+          await Promise.all(
+            paidEnrollments.map(async (e: EnrollmentRecord) => {
+              try {
+                const lessonsRes = await fetch(`/api/courses/${e.course._id}/lessons`, { cache: "no-store" });
+                const lessonsData = await lessonsRes.json();
+                if (lessonsData.success && Array.isArray(lessonsData.lessons)) {
+                  counts[e.course._id] = lessonsData.lessons.length;
+                }
+              } catch (err) {
+                console.error(`Failed to fetch lesson count for course ${e.course._id}`, err);
+              }
+            })
+          );
+          setCourseLessonsCountMap(counts);
+        } else {
+          setError(data.message || "Failed to load enrolled courses.");
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to load enrolled courses.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (isAuthenticated) {
+      fetchMyEnrollments();
+    }
+  }, [isAuthenticated]);
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-6xl mx-auto px-4 py-20 flex flex-col items-center justify-center">
+          <Loader2 className="w-10 h-10 text-primary animate-spin mb-3" />
+          <p className="text-sm font-medium text-muted">Loading your enrolled courses...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      {/* Header Banner */}
+      <section className="bg-gradient-to-b from-primary-tint/40 via-surface to-background border-b border-border py-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20">
+              <GraduationCap className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+                My Enrolled Courses
+              </h1>
+              <p className="text-xs sm:text-sm text-muted">
+                Welcome back, {user?.name}! Continue learning from your unlocked curriculum.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Main Grid Content */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+        {error ? (
+          <div className="card-surface p-8 text-center max-w-lg mx-auto border-red/30">
+            <p className="text-sm text-red font-medium mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow-md"
+            >
+              Retry
+            </button>
+          </div>
+        ) : enrollments.length === 0 ? (
+          /* Empty State */
+          <div className="card-surface p-12 text-center max-w-md mx-auto my-8 border-dashed border-2">
+            <div className="w-16 h-16 rounded-3xl bg-primary-tint text-primary flex items-center justify-center mx-auto mb-4">
+              <BookOpen className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-foreground mb-2">
+              No Enrolled Courses Yet
+            </h2>
+            <p className="text-xs sm:text-sm text-muted mb-6 leading-relaxed">
+              Explore our full course catalog and enroll to unlock video lessons and start learning today.
+            </p>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-600/20"
+            >
+              <span>Explore Course Catalog</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        ) : (
+          /* Course Cards Grid */
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <span className="text-xs font-bold text-muted uppercase tracking-wider">
+                {enrollments.length} {enrollments.length === 1 ? "Active Course" : "Active Courses"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {enrollments.map(({ course, enrolledAt, completedLessons = [], _id: enrollmentId }) => {
+                const totalLessons = courseLessonsCountMap[course._id] || 0;
+                const completedCount = completedLessons.length;
+                const progressPercent = computeProgress(completedCount, totalLessons);
+                const isCompleted = progressPercent === 100;
+
+                return (
+                  <div
+                    key={enrollmentId}
+                    className="card-surface rounded-2xl overflow-hidden border border-border hover:border-primary/40 transition-all flex flex-col justify-between group shadow-md"
+                  >
+                    <div>
+                      {/* Media Thumbnail */}
+                      {course.thumbnailUrl ? (
+                        <div className="w-full h-44 overflow-hidden bg-black/5 relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={course.thumbnailUrl}
+                            alt={course.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full h-40 bg-gradient-to-br from-primary-tint/60 to-surface flex flex-col items-center justify-center text-primary border-b border-border">
+                          <GraduationCap className="w-10 h-10 text-gold mb-1" />
+                          <span className="text-xs font-semibold">Enrolled Course</span>
+                        </div>
+                      )}
+
+                      {/* Content Details */}
+                      <div className="p-5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          {course.category && (
+                            <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-md bg-primary-tint text-primary border border-primary/20">
+                              {course.category.name}
+                            </span>
+                          )}
+                          {isCompleted && (
+                            <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-md bg-gold-tint text-gold border border-gold/30 flex items-center gap-1">
+                              <Award className="w-3 h-3" /> 100% Done
+                            </span>
+                          )}
+                        </div>
+
+                        <h2 className="text-base font-extrabold text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                          {course.title}
+                        </h2>
+
+                        {/* Progress Bar */}
+                        <div className="space-y-1 pt-1">
+                          <div className="flex justify-between text-[11px] font-semibold text-muted">
+                            <span>Progress</span>
+                            <span className="text-foreground">
+                              {completedCount} of {totalLessons} ({progressPercent}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-border h-1.5 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all duration-300 rounded-full ${
+                                isCompleted ? "bg-gold" : "bg-indigo-500"
+                              }`}
+                              style={{ width: `${progressPercent}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs text-muted pt-1">
+                          <Calendar className="w-3.5 h-3.5 text-gold shrink-0" />
+                          <span>
+                            Enrolled {new Date(enrolledAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions Footer */}
+                    <div className="p-5 pt-0 space-y-2">
+                      {isCompleted && (
+                        <Link
+                          href={`/certificate/${course._id}`}
+                          className="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-gold hover:bg-gold-dark text-slate-950 flex items-center justify-center gap-2 shadow-md transition-all"
+                        >
+                          <Award className="w-4 h-4" />
+                          <span>Get Certificate</span>
+                        </Link>
+                      )}
+
+                      <Link
+                        href={`/courses/${course._id}`}
+                        className="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center gap-2 shadow-md shadow-indigo-600/20 transition-all"
+                      >
+                        <PlayCircle className="w-4 h-4" />
+                        <span>{isCompleted ? "Review Course" : "Continue Learning"}</span>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+
+--- FILE: src/app/wishlist/page.tsx ---
+"use client";
+
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import {
+  Heart,
+  BookOpen,
+  GraduationCap,
+  Trash2,
+  ArrowRight,
+  Loader2,
+  Star,
+  ShoppingBag,
+} from "lucide-react";
+
+interface Course {
   _id: string;
   title: string;
   slug: string;
@@ -3327,719 +5855,573 @@ interface CourseDetail {
   level: "Beginner" | "Intermediate" | "Advanced";
   price: number;
   thumbnailUrl?: string;
-  isPublished: boolean;
-  createdAt: string;
-  updatedAt: string;
+  averageRating?: number;
+  numReviews?: number;
 }
 
-interface LessonSummary {
+interface WishlistItem {
   _id: string;
-  title: string;
-  order: number;
-  isPreview: boolean;
-  durationSeconds: number;
+  course: Course;
+  createdAt: string;
 }
 
-export default function CourseDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const resolvedParams = use(params);
-  const courseId = resolvedParams.id;
+export default function WishlistPage() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const router = useRouter();
 
-  const [course, setCourse] = useState<CourseDetail | null>(null);
-  const [lessons, setLessons] = useState<LessonSummary[]>([]);
+  const [wishlists, setWishlists] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadCourseAndLessons() {
-      try {
-        setLoading(true);
-        setError(null);
+    if (!authLoading && !isAuthenticated) {
+      router.replace("/login?redirect=/wishlist");
+    }
+  }, [authLoading, isAuthenticated, router]);
 
-        const [courseRes, lessonsRes] = await Promise.all([
-          fetch(`/api/courses/${courseId}`, { cache: "no-store" }),
-          fetch(`/api/courses/${courseId}/lessons`, { cache: "no-store" }),
-        ]);
-
-        const courseData = await courseRes.json();
-        const lessonsData = await lessonsRes.json();
-
-        if (courseRes.status === 404 || !courseData.success || !courseData.course) {
-          setError("Course not found or is currently unavailable.");
-          setCourse(null);
-        } else {
-          setCourse(courseData.course);
-        }
-
-        if (lessonsData.success && Array.isArray(lessonsData.lessons)) {
-          setLessons(lessonsData.lessons);
-        }
-      } catch (err: any) {
-        setError(err.message || "Failed to load course details.");
-      } finally {
-        setLoading(false);
+  const fetchWishlist = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/wishlist", { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setWishlists(data.wishlists || []);
+      } else {
+        setError(data.message || "Failed to load wishlist");
       }
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    if (courseId) {
-      loadCourseAndLessons();
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchWishlist();
     }
-  }, [courseId]);
+  }, [isAuthenticated]);
 
-  if (loading) {
-    return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-medium text-muted">Loading course details...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleRemove = async (courseId: string) => {
+    try {
+      setWishlists((prev) => prev.filter((w) => w.course?._id !== courseId));
+      await fetch(`/api/wishlist/${courseId}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("Failed to remove wishlist item:", err);
+    }
+  };
 
-  if (error || !course) {
+  if (authLoading || (!isAuthenticated && !authLoading)) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <div className="card-surface p-10 max-w-lg mx-auto">
-          <div className="w-14 h-14 rounded-2xl bg-red-tint text-red mx-auto flex items-center justify-center mb-4">
-            <AlertCircle className="w-7 h-7" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground mb-2">
-            Course Not Found
-          </h1>
-          <p className="text-sm text-muted mb-6 leading-relaxed">
-            {error ||
-              "The course you are looking for does not exist or has been unpublished by the instructor."}
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white text-sm font-semibold transition-all shadow-md shadow-primary/20"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to Course Catalog</span>
-          </Link>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-20">
-      {/* Header Breadcrumb Banner */}
-      <section className="bg-gradient-to-b from-primary-tint/50 via-surface to-background border-b border-border py-8 sm:py-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-red-500/10 text-red-400 text-xs font-bold uppercase tracking-wider mb-1">
+            <Heart className="w-3.5 h-3.5 fill-current" />
+            Saved Courses
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-foreground tracking-tight">
+            My Wishlist
+          </h1>
+          <p className="text-xs sm:text-sm text-muted mt-1">
+            Manage your saved learning tracks and enroll when you are ready.
+          </p>
+        </div>
+
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-surface border border-border text-xs font-semibold rounded-xl text-foreground hover:bg-black/5 transition"
+        >
+          <BookOpen className="w-4 h-4 text-primary" />
+          <span>Browse Catalog</span>
+        </Link>
+      </div>
+
+      {/* Content Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="card-surface p-4 h-64 animate-pulse rounded-2xl" />
+          ))}
+        </div>
+      ) : error ? (
+        <div className="card-surface p-8 text-center text-red text-xs max-w-md mx-auto">
+          {error}
+        </div>
+      ) : wishlists.length === 0 ? (
+        <div className="card-surface p-12 text-center max-w-md mx-auto my-8">
+          <Heart className="w-12 h-12 text-muted mx-auto mb-3 opacity-40" />
+          <h3 className="text-base font-bold text-foreground mb-1">
+            Your wishlist is empty
+          </h3>
+          <p className="text-xs text-muted mb-6">
+            Click the heart icon on any course card in the catalog to save it for later.
+          </p>
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-primary mb-6 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl shadow-md transition"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to All Courses</span>
+            <ShoppingBag className="w-4 h-4" />
+            <span>Explore Courses</span>
           </Link>
-
-          <div className="flex flex-wrap items-center gap-2.5 mb-4">
-            {course.category && (
-              <span className="px-3 py-1 text-xs font-bold rounded-lg bg-primary-tint text-primary border border-primary/20">
-                {course.category.name}
-              </span>
-            )}
-            <span
-              className={`px-2.5 py-1 text-xs font-bold rounded-lg uppercase tracking-wider ${
-                course.level === "Beginner"
-                  ? "bg-green-tint text-green border border-green/30"
-                  : course.level === "Intermediate"
-                  ? "bg-gold-tint text-gold border border-gold/30"
-                  : "bg-red-tint text-red border border-red/30"
-              }`}
-            >
-              {course.level}
-            </span>
-            {!course.isPublished && (
-              <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-gold-tint text-gold border border-gold/30">
-                Draft (Admin Preview)
-              </span>
-            )}
-          </div>
-
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-foreground tracking-tight leading-tight max-w-4xl">
-            {course.title}
-          </h1>
-
-          <div className="mt-6 flex flex-wrap items-center gap-6 text-sm text-muted">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                {course.instructor.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <span className="text-xs text-muted block">Instructor</span>
-                <span className="font-semibold text-foreground">
-                  {course.instructor}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-gold" />
-              <span>
-                Added on{" "}
-                {new Date(course.createdAt).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </span>
-            </div>
-          </div>
         </div>
-      </section>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {wishlists.map((w) => {
+            const course = w.course;
+            if (!course) return null;
 
-      {/* Main Content Layout */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Left / Main Column */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Description Section */}
-            <div className="card-surface p-6 sm:p-8">
-              <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-primary" />
-                About This Course
-              </h2>
-              <p className="text-muted leading-relaxed whitespace-pre-line text-sm sm:text-base">
-                {course.description}
-              </p>
-            </div>
-
-            {/* Real Curriculum View (Part 3) */}
-            <div className="card-surface p-6 sm:p-8">
-              <div className="flex items-center justify-between pb-4 mb-6 border-b border-border">
-                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-primary" />
-                  Course Curriculum
-                </h2>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-primary-tint text-primary">
-                  {lessons.length} {lessons.length === 1 ? "Lesson" : "Lessons"}
-                </span>
-              </div>
-
-              {lessons.length === 0 ? (
-                <div className="p-8 bg-primary-tint/20 rounded-xl border border-border text-center">
-                  <Video className="w-8 h-8 text-muted mx-auto mb-2 opacity-50" />
-                  <h3 className="text-sm font-bold text-foreground mb-1">
-                    Curriculum In Progress
-                  </h3>
-                  <p className="text-xs text-muted max-w-md mx-auto">
-                    The lessons for this course are currently being published by the instructor.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {lessons.map((lesson) => (
-                    <div
-                      key={lesson._id}
-                      className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                        lesson.isPreview
-                          ? "bg-surface hover:bg-primary-tint/30 border-border hover:border-primary/40 cursor-pointer"
-                          : "bg-surface/50 border-border/60 opacity-80"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3.5 min-w-0 pr-4">
-                        <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                            lesson.isPreview
-                              ? "bg-primary text-white shadow-sm"
-                              : "bg-border text-muted"
-                          }`}
-                        >
-                          #{lesson.order}
-                        </div>
-                        <span
-                          className={`text-sm font-semibold truncate ${
-                            lesson.isPreview ? "text-foreground" : "text-muted"
-                          }`}
-                        >
-                          {lesson.title}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {lesson.isPreview ? (
-                          <Link
-                            href={`/learn/${course._id}/${lesson._id}`}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-green-tint text-green hover:bg-green/20 border border-green/30 transition-colors shadow-sm"
-                          >
-                            <Play className="w-3 h-3 fill-current" />
-                            <span>Preview</span>
-                          </Link>
-                        ) : (
-                          <div
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-muted select-none"
-                            title="Enroll to unlock (Part 4)"
-                          >
-                            <Lock className="w-3 h-3" />
-                            <span>Locked</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Column / Enrollment Card */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 card-surface p-6 sm:p-7 shadow-xl shadow-primary/5 border-primary/20 space-y-6">
-              {/* Media Preview if exists */}
-              {course.thumbnailUrl ? (
-                <div className="w-full h-44 rounded-xl overflow-hidden bg-primary-tint/40 border border-border">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={course.thumbnailUrl}
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="w-full h-36 rounded-xl bg-primary-tint/40 flex flex-col items-center justify-center text-primary/60 border border-border">
-                  <GraduationCap className="w-10 h-10 text-gold mb-1" />
-                  <span className="text-xs font-semibold">Course Preview</span>
-                </div>
-              )}
-
-              {/* Pricing Display */}
-              <div>
-                <span className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-                  Tuition & Access
-                </span>
-                <div className="flex items-baseline gap-2">
-                  {course.price === 0 ? (
-                    <span className="text-3xl font-black text-green">Free</span>
+            return (
+              <div
+                key={w._id}
+                className="card-surface overflow-hidden flex flex-col border border-border hover:border-primary/30 transition-all"
+              >
+                {/* Thumbnail */}
+                <div className="relative w-full h-44 bg-primary-tint/50 overflow-hidden flex items-center justify-center">
+                  {course.thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={course.thumbnailUrl}
+                      alt={course.title}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
-                    <span className="text-3xl font-black text-foreground">
-                      ${course.price.toFixed(2)}
-                    </span>
+                    <GraduationCap className="w-12 h-12 text-gold opacity-60" />
                   )}
-                  <span className="text-xs text-muted">one-time payment</span>
-                </div>
-              </div>
 
-              {/* Visibly Disabled Enroll Button with explicit caption */}
-              <div className="space-y-2">
-                <button
-                  disabled
-                  className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gray-200 text-gray-400 cursor-not-allowed flex items-center justify-center gap-2 border border-gray-300 shadow-none transition-none"
-                  title="Payments coming in Part 4"
-                >
-                  <Lock className="w-4 h-4" />
-                  <span>Enroll in Course</span>
-                </button>
-                <p className="text-[11px] text-center text-muted font-medium">
-                  🔒 Payments & enrollment coming in Part 4
-                </p>
-              </div>
+                  <button
+                    onClick={() => handleRemove(course._id)}
+                    className="absolute top-3 right-3 p-2 rounded-xl bg-slate-900/80 text-white hover:text-red-400 backdrop-blur-md transition shadow-md"
+                    title="Remove from Wishlist"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
 
-              {/* Course Highlights */}
-              <div className="pt-4 border-t border-border space-y-3 text-xs text-muted">
-                <div className="flex justify-between">
-                  <span>Curriculum:</span>
-                  <span className="font-semibold text-foreground">
-                    {lessons.length} {lessons.length === 1 ? "Lesson" : "Lessons"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Level:</span>
-                  <span className="font-semibold text-foreground">
-                    {course.level}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Instructor:</span>
-                  <span className="font-semibold text-foreground">
-                    {course.instructor}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Category:</span>
-                  <span className="font-semibold text-foreground">
+                {/* Body */}
+                <div className="p-5 flex-1 flex flex-col space-y-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
                     {course.category?.name || "General"}
                   </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Access:</span>
-                  <span className="font-semibold text-foreground">
-                    Lifetime
-                  </span>
+
+                  <h3 className="text-sm font-bold text-foreground line-clamp-2">
+                    {course.title}
+                  </h3>
+
+                  <div className="mt-auto pt-3 border-t border-border flex items-center justify-between">
+                    <span className="text-base font-extrabold text-foreground">
+                      {course.price === 0 ? "Free" : `$${course.price.toFixed(2)}`}
+                    </span>
+
+                    <Link
+                      href={`/courses/${course._id}`}
+                      className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl inline-flex items-center gap-1 transition shadow-sm"
+                    >
+                      <span>View & Enroll</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
-      </main>
+      )}
     </div>
   );
 }
 
 
---- FILE: src/app/learn/[courseId]/[lessonId]/page.tsx ---
+--- FILE: src/app/checkout/success/page.tsx ---
 "use client";
 
-import React, { useEffect, useState, use } from "react";
+import React, { useEffect, useState, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Play,
-  Lock,
-  Film,
-  BookOpen,
-  Layers,
-  GraduationCap,
-  AlertCircle,
-  Loader2,
-  CheckCircle2,
-  ShieldAlert,
-} from "lucide-react";
+import { CheckCircle2, Loader2, AlertCircle, PlayCircle, ArrowRight } from "lucide-react";
 
-interface CourseInfo {
-  _id: string;
-  title: string;
-  slug: string;
-  instructor: string;
-}
+function CheckoutSuccessContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const sessionId = searchParams.get("session_id");
+  const initialCourseId = searchParams.get("courseId");
 
-interface LessonItem {
-  _id: string;
-  course: string;
-  title: string;
-  order: number;
-  videoUrl?: string;
-  durationSeconds: number;
-  isPreview: boolean;
-}
-
-export default function LessonPlayerPage({
-  params,
-}: {
-  params: Promise<{ courseId: string; lessonId: string }>;
-}) {
-  const resolvedParams = use(params);
-  const { courseId, lessonId } = resolvedParams;
-
-  const [course, setCourse] = useState<CourseInfo | null>(null);
-  const [lessons, setLessons] = useState<LessonItem[]>([]);
-  const [currentLesson, setCurrentLesson] = useState<LessonItem | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<"polling" | "success" | "timeout" | "error">("polling");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [courseId, setCourseId] = useState<string | null>(initialCourseId);
+  const [firstLessonId, setFirstLessonId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchCourseAndLessons() {
-      try {
-        setLoading(true);
-        setError(null);
+    let isSubscribed = true;
 
-        const [courseRes, lessonsRes] = await Promise.all([
-          fetch(`/api/courses/${courseId}`, { cache: "no-store" }),
-          fetch(`/api/courses/${courseId}/lessons`, { cache: "no-store" }),
-        ]);
+    const verifyAndCheck = async () => {
+      // 1. Direct Stripe verification via server if sessionId is available
+      if (sessionId) {
+        try {
+          const verifyRes = await fetch(`/api/checkout/verify?session_id=${encodeURIComponent(sessionId)}`);
+          const verifyData = await verifyRes.json();
 
-        const courseData = await courseRes.json();
-        const lessonsData = await lessonsRes.json();
+          if (verifyData.success && verifyData.paymentStatus === "Paid") {
+            if (!isSubscribed) return;
+            const targetCourseId = verifyData.courseId || initialCourseId;
+            if (targetCourseId) setCourseId(targetCourseId);
+            setStatus("success");
 
-        if (!courseRes.ok || !courseData.success || !courseData.course) {
-          setError(courseData.message || "Course not found");
-          return;
+            if (targetCourseId) {
+              try {
+                const courseRes = await fetch(`/api/courses/${targetCourseId}`);
+                const courseData = await courseRes.json();
+                if (courseData.success && courseData.course?.lessons?.length > 0) {
+                  if (isSubscribed) setFirstLessonId(courseData.course.lessons[0]._id);
+                }
+              } catch (e) {
+                console.error("Failed to fetch course details for redirect", e);
+              }
+            }
+            return;
+          }
+        } catch (e) {
+          console.error("Direct session verification error:", e);
         }
-        setCourse(courseData.course);
+      }
 
-        if (lessonsData.success && Array.isArray(lessonsData.lessons)) {
-          setLessons(lessonsData.lessons);
-          const found = lessonsData.lessons.find(
-            (l: LessonItem) => l._id === lessonId
-          );
-          if (found) {
-            setCurrentLesson(found);
-          } else if (lessonsData.lessons.length > 0) {
-            setCurrentLesson(lessonsData.lessons[0]);
-          } else {
-            setError("No lessons found for this course.");
+      // 2. Fallback polling if verify endpoint didn't immediately confirm
+      const targetCourseId = courseId || initialCourseId;
+      if (!targetCourseId) {
+        if (isSubscribed) setStatus("success");
+        return;
+      }
+
+      let attempts = 0;
+      const maxAttempts = 6;
+      let intervalId: NodeJS.Timeout;
+
+      const checkEnrollment = async () => {
+        attempts++;
+        try {
+          const res = await fetch(`/api/enrollments/me?courseId=${targetCourseId}`);
+          const data = await res.json();
+
+          if (data.success && data.paymentStatus === "Paid") {
+            if (!isSubscribed) return;
+            setStatus("success");
+            clearInterval(intervalId);
+
+            try {
+              const courseRes = await fetch(`/api/courses/${targetCourseId}`);
+              const courseData = await courseRes.json();
+              if (courseData.success && courseData.course?.lessons?.length > 0) {
+                if (isSubscribed) setFirstLessonId(courseData.course.lessons[0]._id);
+              }
+            } catch (e) {
+              console.error("Failed to fetch course details for redirect", e);
+            }
+            return;
+          }
+
+          if (attempts >= maxAttempts) {
+            if (isSubscribed) setStatus("timeout");
+            clearInterval(intervalId);
+          }
+        } catch (err) {
+          console.error("Error polling enrollment status:", err);
+          if (attempts >= maxAttempts) {
+            if (isSubscribed) setStatus("timeout");
+            clearInterval(intervalId);
           }
         }
-      } catch (err: any) {
-        setError(err.message || "Failed to load player data");
-      } finally {
-        setLoading(false);
-      }
-    }
+      };
 
-    if (courseId && lessonId) {
-      fetchCourseAndLessons();
-    }
-  }, [courseId, lessonId]);
+      checkEnrollment();
+      intervalId = setInterval(checkEnrollment, 2000);
+    };
 
-  if (loading) {
-    return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-9 h-9 animate-spin text-primary" />
-          <p className="text-sm font-medium text-muted">Loading lesson video player...</p>
-        </div>
-      </div>
-    );
-  }
+    verifyAndCheck();
 
-  if (error || !course || !currentLesson) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <div className="card-surface p-10 max-w-lg mx-auto">
-          <div className="w-14 h-14 rounded-2xl bg-red-tint text-red mx-auto flex items-center justify-center mb-4">
-            <AlertCircle className="w-7 h-7" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground mb-2">
-            Lesson Unavailable
-          </h1>
-          <p className="text-sm text-muted mb-6 leading-relaxed">
-            {error || "The requested lesson could not be found."}
-          </p>
-          <Link
-            href={`/courses/${courseId}`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white text-sm font-semibold transition-all shadow-md shadow-primary/20"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Return to Course Overview</span>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Find index in lessons array for prev / next
-  const currentIndex = lessons.findIndex((l) => l._id === currentLesson._id);
-  const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
-  const nextLesson =
-    currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
-
-  // Gating rule: lesson has a non-empty videoUrl
-  const isPlayable = Boolean(currentLesson.videoUrl && currentLesson.videoUrl.trim().length > 0);
+    return () => {
+      isSubscribed = false;
+    };
+  }, [sessionId, initialCourseId, courseId]);
 
   return (
-    <div className="min-h-screen bg-background pb-16">
-      {/* Top Learning Bar */}
-      <div className="border-b border-border bg-surface sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <Link
-              href={`/courses/${courseId}`}
-              className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-black/5 transition-colors shrink-0"
-              title="Return to Course Page"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-
-            <div className="min-w-0">
-              <span className="text-[11px] font-bold text-primary block truncate uppercase tracking-wider">
-                {course.title}
-              </span>
-              <h1 className="text-sm sm:text-base font-extrabold text-foreground truncate">
-                Lesson {currentLesson.order}: {currentLesson.title}
-              </h1>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl text-center">
+        {status === "polling" && (
+          <div className="flex flex-col items-center py-6">
+            <Loader2 className="w-14 h-14 text-indigo-500 animate-spin mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">Processing Payment...</h2>
+            <p className="text-slate-400 text-sm mb-4">
+              We received your Stripe payment! Confirming your course enrollment...
+            </p>
+            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-indigo-500 h-full w-2/3 animate-pulse rounded-full" />
             </div>
           </div>
+        )}
 
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Prev Lesson Button */}
-            {prevLesson ? (
-              <Link
-                href={`/learn/${courseId}/${prevLesson._id}`}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-foreground bg-background hover:bg-black/5 border border-border transition-colors"
-                title={`Previous: ${prevLesson.title}`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Prev</span>
-              </Link>
-            ) : (
-              <button
-                disabled
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-muted bg-border/40 border border-border cursor-not-allowed opacity-50"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Prev</span>
-              </button>
-            )}
-
-            {/* Next Lesson Button */}
-            {nextLesson ? (
-              <Link
-                href={`/learn/${courseId}/${nextLesson._id}`}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-primary hover:bg-primary-dark transition-colors shadow-sm"
-                title={`Next: ${nextLesson.title}`}
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="w-4 h-4" />
-              </Link>
-            ) : (
-              <button
-                disabled
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-muted bg-border/40 border border-border cursor-not-allowed opacity-50"
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Workspace Layout */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content: Video Screen or Locked Placeholder */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="card-surface overflow-hidden p-2 sm:p-3 shadow-lg">
-              {isPlayable ? (
-                <div className="rounded-xl overflow-hidden bg-black shadow-2xl relative aspect-video flex items-center justify-center">
-                  <video
-                    controls
-                    autoPlay
-                    playsInline
-                    className="w-full h-full object-contain"
-                    src={currentLesson.videoUrl}
-                  >
-                    Your browser does not support HTML5 video streaming.
-                  </video>
-                </div>
-              ) : (
-                /* Locked State Placeholder (No empty video tag) */
-                <div className="rounded-xl bg-gradient-to-b from-surface to-background border border-border p-8 sm:p-12 text-center aspect-video flex flex-col items-center justify-center">
-                  <div className="w-16 h-16 rounded-3xl bg-gold-tint text-gold flex items-center justify-center mb-4 shadow-md shadow-gold/10">
-                    <Lock className="w-8 h-8" />
-                  </div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-gold mb-1">
-                    Enrolled Students Only
-                  </span>
-                  <h2 className="text-xl sm:text-2xl font-black text-foreground mb-2">
-                    This lesson unlocks after enrollment (Part 4)
-                  </h2>
-                  <p className="text-xs sm:text-sm text-muted max-w-md mx-auto leading-relaxed mb-6">
-                    You are viewing a protected lesson. Full streaming access and learning resources unlock upon course enrollment.
-                  </p>
-                  <Link
-                    href={`/courses/${courseId}`}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-primary hover:bg-primary-dark text-white shadow-md shadow-primary/20 transition-all"
-                  >
-                    <BookOpen className="w-4 h-4 text-gold" />
-                    <span>View Course Details</span>
-                  </Link>
-                </div>
-              )}
+        {status === "success" && (
+          <div className="flex flex-col items-center py-4">
+            <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-10 h-10" />
             </div>
-
-            {/* Lesson Details Card */}
-            <div className="card-surface p-6 sm:p-7 space-y-3">
-              <div className="flex items-center gap-2.5">
-                <span className="px-2.5 py-0.5 rounded-lg bg-primary-tint text-primary text-xs font-bold">
-                  Lesson #{currentLesson.order}
-                </span>
-                {currentLesson.isPreview ? (
-                  <span className="px-2.5 py-0.5 rounded-lg bg-green-tint text-green text-xs font-bold border border-green/30">
-                    Free Preview
-                  </span>
-                ) : (
-                  <span className="px-2.5 py-0.5 rounded-lg bg-border text-muted text-xs font-semibold">
-                    Full Course Access
-                  </span>
-                )}
-              </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground">
-                {currentLesson.title}
-              </h2>
-              <p className="text-xs sm:text-sm text-muted leading-relaxed">
-                Instructor: <strong className="text-foreground">{course.instructor}</strong> • Part of the{" "}
+            <h2 className="text-2xl font-bold text-white mb-2">Enrollment Confirmed!</h2>
+            <p className="text-slate-300 text-sm mb-6">
+              Thank you for your purchase. You now have full access to this course.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
+              {courseId && firstLessonId ? (
+                <Link
+                  href={`/learn/${courseId}/${firstLessonId}`}
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-4 rounded-xl transition"
+                >
+                  <PlayCircle className="w-5 h-5" /> Start Learning
+                </Link>
+              ) : courseId ? (
                 <Link
                   href={`/courses/${courseId}`}
-                  className="text-primary hover:underline font-semibold"
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-4 rounded-xl transition"
                 >
-                  {course.title}
-                </Link>{" "}
-                curriculum.
+                  Go to Course Page <ArrowRight className="w-4 h-4" />
+                </Link>
+              ) : (
+                <Link
+                  href="/dashboard"
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-4 rounded-xl transition"
+                >
+                  Go to Dashboard <ArrowRight className="w-4 h-4" />
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        {status === "timeout" && (
+          <div className="flex flex-col items-center py-4">
+            <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="w-10 h-10" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Still Processing...</h2>
+            <p className="text-slate-400 text-sm mb-6">
+              Your payment was received, but enrollment activation is taking a moment. Please refresh this page or check your dashboard shortly.
+            </p>
+            <div className="flex flex-col gap-3 w-full">
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-2.5 px-4 rounded-xl border border-slate-700 transition"
+              >
+                Refresh Status
+              </button>
+              {courseId && (
+                <Link
+                  href={`/courses/${courseId}`}
+                  className="w-full text-indigo-400 hover:text-indigo-300 text-sm font-medium transition"
+                >
+                  Return to Course Page
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+      </div>
+    }>
+      <CheckoutSuccessContent />
+    </Suspense>
+  );
+}
+
+
+--- FILE: src/app/admin/layout.tsx ---
+"use client";
+
+import React, { useEffect } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import {
+  Shield,
+  LayoutDashboard,
+  FolderTree,
+  BookOpen,
+  Users,
+  MessageSquare,
+  TrendingUp,
+  ArrowLeft,
+  GraduationCap,
+  PlusCircle,
+  ExternalLink,
+} from "lucide-react";
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user, loading, isAdmin } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!loading && !isAdmin) {
+      router.replace("/");
+    }
+  }, [loading, isAdmin, router]);
+
+  if (loading || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-medium text-muted">
+            Verifying administrative privileges...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const navItems = [
+    {
+      label: "Overview",
+      href: "/admin",
+      icon: LayoutDashboard,
+      exact: true,
+    },
+    {
+      label: "Analytics",
+      href: "/admin/analytics",
+      icon: TrendingUp,
+      exact: false,
+    },
+    {
+      label: "Categories",
+      href: "/admin/categories",
+      icon: FolderTree,
+      exact: false,
+    },
+    {
+      label: "Courses",
+      href: "/admin/courses",
+      icon: BookOpen,
+      exact: false,
+    },
+    {
+      label: "Users",
+      href: "/admin/users",
+      icon: Users,
+      exact: false,
+    },
+    {
+      label: "Q&A Discussions",
+      href: "/admin/questions",
+      icon: MessageSquare,
+      exact: false,
+    },
+  ];
+
+  const isNavActive = (href: string, exact: boolean) => {
+    if (exact) return pathname === href;
+    return pathname.startsWith(href);
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col md:flex-row">
+      {/* Sidebar */}
+      <aside className="w-full md:w-64 bg-surface border-r border-border md:min-h-screen flex flex-col shrink-0">
+        {/* Admin Header */}
+        <div className="p-5 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/20">
+              <Shield className="w-5 h-5 text-gold" />
+            </div>
+            <div>
+              <h2 className="font-bold text-sm text-foreground tracking-tight leading-tight">
+                Admin Portal
+              </h2>
+              <span className="text-[10px] font-semibold text-gold uppercase tracking-wider">
+                EduPulse Core
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Links */}
+        <nav className="p-3 space-y-1 flex-1">
+          <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted">
+            Management
+          </div>
+
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = isNavActive(item.href, item.exact);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                  active
+                    ? "bg-primary text-white shadow-sm shadow-primary/25"
+                    : "text-muted hover:text-foreground hover:bg-black/5"
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${active ? "text-gold" : "text-muted"}`} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t border-border space-y-2">
+          <div className="px-3 py-2 rounded-xl bg-primary-tint/40 border border-primary/10 flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center text-xs font-bold">
+              {user?.name?.charAt(0).toUpperCase() || "A"}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-xs font-semibold text-foreground truncate">
+                {user?.name || "Admin"}
+              </p>
+              <p className="text-[10px] text-gold font-semibold uppercase">
+                Administrator
               </p>
             </div>
           </div>
 
-          {/* Right Sidebar: Curriculum Navigation */}
-          <div className="lg:col-span-1">
-            <div className="card-surface p-5 sm:p-6 space-y-4 sticky top-20">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-primary" />
-                  Course Content
-                </h3>
-                <span className="text-xs text-muted font-medium">
-                  {lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}
-                </span>
-              </div>
-
-              <div className="space-y-2 max-h-[calc(100vh-16rem)] overflow-y-auto pr-1">
-                {lessons.map((lesson) => {
-                  const isActive = lesson._id === currentLesson._id;
-
-                  return (
-                    <Link
-                      key={lesson._id}
-                      href={`/learn/${courseId}/${lesson._id}`}
-                      className={`flex items-center justify-between p-3 rounded-xl border text-xs transition-all ${
-                        isActive
-                          ? "bg-primary text-white border-primary shadow-md shadow-primary/20 font-bold"
-                          : "bg-surface hover:bg-primary-tint/30 text-foreground border-border"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                        <span
-                          className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                            isActive
-                              ? "bg-white/20 text-white"
-                              : "bg-primary-tint text-primary"
-                          }`}
-                        >
-                          {lesson.order}
-                        </span>
-                        <span className="truncate">{lesson.title}</span>
-                      </div>
-
-                      <div className="shrink-0 flex items-center">
-                        {lesson.isPreview ? (
-                          <span
-                            className={`p-1 rounded-md text-[10px] ${
-                              isActive
-                                ? "bg-white/20 text-white"
-                                : "text-green bg-green-tint border border-green/30"
-                            }`}
-                            title="Preview Available"
-                          >
-                            <Play className="w-2.5 h-2.5 fill-current" />
-                          </span>
-                        ) : (
-                          <span
-                            className={`p-1 rounded-md text-[10px] ${
-                              isActive ? "text-white/80" : "text-muted"
-                            }`}
-                            title="Locked"
-                          >
-                            <Lock className="w-2.5 h-2.5" />
-                          </span>
-                        )}
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          <Link
+            href="/"
+            className="flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-medium text-muted hover:text-primary hover:bg-primary-tint/60 transition-colors"
+          >
+            <span className="flex items-center gap-1.5">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Public Storefront
+            </span>
+            <ExternalLink className="w-3 h-3 text-muted" />
+          </Link>
         </div>
-      </main>
+      </aside>
+
+      {/* Main Admin Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+      </div>
     </div>
   );
 }
@@ -4060,6 +6442,7 @@ import {
   TrendingUp,
   ShieldCheck,
   Eye,
+  Users,
 } from "lucide-react";
 
 interface Category {
@@ -4086,25 +6469,31 @@ interface Course {
 export default function AdminOverviewPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [totalUsers, setTotalUsers] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
-        const [courseRes, catRes] = await Promise.all([
+        const [courseRes, catRes, userRes] = await Promise.all([
           fetch("/api/admin/courses"),
           fetch("/api/categories"),
+          fetch("/api/admin/users?limit=1"),
         ]);
 
         const courseData = await courseRes.json();
         const catData = await catRes.json();
+        const userData = await userRes.json();
 
         if (courseData.success && Array.isArray(courseData.courses)) {
           setCourses(courseData.courses);
         }
         if (catData.success && Array.isArray(catData.categories)) {
           setCategories(catData.categories);
+        }
+        if (userData.success && typeof userData.total === "number") {
+          setTotalUsers(userData.total);
         }
       } catch (err) {
         console.error("Failed to load admin overview:", err);
@@ -4134,17 +6523,25 @@ export default function AdminOverviewPage() {
             Dashboard & Metrics
           </h1>
           <p className="text-xs sm:text-sm text-muted mt-1">
-            Monitor learning content, catalog status, and course taxonomies.
+            Monitor learning content, catalog status, users, and course taxonomies.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
           <Link
-            href="/admin/categories"
+            href="/admin/analytics"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all shadow-sm"
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>Revenue Analytics</span>
+          </Link>
+
+          <Link
+            href="/admin/users"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-surface border border-border text-foreground hover:bg-black/5 transition-all shadow-sm"
           >
-            <FolderTree className="w-3.5 h-3.5 text-primary" />
-            <span>Manage Categories</span>
+            <Users className="w-3.5 h-3.5 text-primary" />
+            <span>Manage Users</span>
           </Link>
 
           <Link
@@ -4157,8 +6554,24 @@ export default function AdminOverviewPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Total Users */}
+        <div className="card-surface p-5 card-surface-hover">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+              Total Users
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+              <Users className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
+            {loading ? "..." : totalUsers}
+          </div>
+          <p className="text-[11px] text-muted mt-1">Students & Admins</p>
+        </div>
+
         {/* Total Courses */}
         <div className="card-surface p-5 card-surface-hover">
           <div className="flex items-center justify-between mb-3">
@@ -4278,7 +6691,7 @@ export default function AdminOverviewPage() {
                       {course.title}
                     </td>
                     <td className="py-3.5 px-4 text-muted">
-                      {course.category?.name || "—"}
+                      {course.category?.name || "â€”"}
                     </td>
                     <td className="py-3.5 px-4 text-muted">{course.instructor}</td>
                     <td className="py-3.5 px-4">
@@ -4309,6 +6722,353 @@ export default function AdminOverviewPage() {
                       >
                         <Eye className="w-3 h-3" />
                         <span>Preview</span>
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+--- FILE: src/app/admin/analytics/page.tsx ---
+"use client";
+
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  TrendingUp,
+  DollarSign,
+  Users,
+  BookOpen,
+  GraduationCap,
+  Award,
+  Loader2,
+  ArrowRight,
+  BarChart3,
+  LineChart as LineChartIcon,
+  ShieldCheck,
+  Eye,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
+
+interface MonthlyMetric {
+  month: string;
+  count: number;
+  revenue: number;
+}
+
+interface TopCourseItem {
+  _id: string;
+  title: string;
+  instructor: string;
+  price: number;
+  enrollmentsCount: number;
+  totalRevenue: number;
+  isPublished: boolean;
+}
+
+interface AnalyticsData {
+  totals: {
+    totalRevenue: number;
+    totalEnrollments: number;
+    totalUsers: number;
+    totalCourses: number;
+  };
+  monthlySignups: MonthlyMetric[];
+  monthlyEnrollments: MonthlyMetric[];
+  topCourses: TopCourseItem[];
+}
+
+export default function AdminAnalyticsPage() {
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadAnalytics() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch("/api/admin/analytics", { cache: "no-store" });
+        const resData = await res.json();
+        if (res.ok && resData.success) {
+          setData(resData);
+        } else {
+          setError(resData.message || "Failed to load analytics");
+        }
+      } catch (err: any) {
+        setError(err.message || "An error occurred");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadAnalytics();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto py-16 text-center">
+        <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-3" />
+        <p className="text-sm font-medium text-muted">
+          Compiling business intelligence & revenue analytics...
+        </p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="card-surface p-8 max-w-lg mx-auto text-center border-red/30">
+        <p className="text-sm text-red font-medium mb-4">
+          {error || "Analytics unavailable"}
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const { totals, monthlySignups, monthlyEnrollments, topCourses } = data;
+
+  return (
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gold-tint text-gold text-xs font-bold uppercase tracking-wider mb-1">
+            <TrendingUp className="w-3.5 h-3.5" />
+            Executive Intelligence
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+            Revenue & Performance Analytics
+          </h1>
+          <p className="text-xs sm:text-sm text-muted mt-1">
+            Real-time enrollment volume, revenue trends, student signups, and top performing courses.
+          </p>
+        </div>
+      </div>
+
+      {/* Headline KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Revenue */}
+        <div className="card-surface p-5 card-surface-hover">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+              Total Revenue
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+              <DollarSign className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400">
+            ${totals.totalRevenue.toFixed(2)}
+          </div>
+          <p className="text-[11px] text-muted mt-1">Verified Stripe payouts</p>
+        </div>
+
+        {/* Total Paid Enrollments */}
+        <div className="card-surface p-5 card-surface-hover">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+              Paid Enrollments
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
+            {totals.totalEnrollments}
+          </div>
+          <p className="text-[11px] text-muted mt-1">Unlocked course licenses</p>
+        </div>
+
+        {/* Total Users */}
+        <div className="card-surface p-5 card-surface-hover">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-muted uppercase tracking-wider">
+              Total Accounts
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-primary-tint text-primary flex items-center justify-center">
+              <Users className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
+            {totals.totalUsers}
+          </div>
+          <p className="text-[11px] text-muted mt-1">Registered users</p>
+        </div>
+
+        {/* Total Courses */}
+        <div className="card-surface p-5 card-surface-hover">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-gold uppercase tracking-wider">
+              Catalog Items
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-gold-tint text-gold flex items-center justify-center">
+              <BookOpen className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
+            {totals.totalCourses}
+          </div>
+          <p className="text-[11px] text-muted mt-1">Active courses in catalog</p>
+        </div>
+      </div>
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Monthly Revenue Chart */}
+        <div className="card-surface p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-emerald-400" />
+                <span>Monthly Revenue ($)</span>
+              </h2>
+              <p className="text-xs text-muted">12-month gross revenue trend</p>
+            </div>
+          </div>
+
+          <div className="h-64 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyEnrollments}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} />
+                <YAxis stroke="#94a3b8" fontSize={11} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#0f172a",
+                    borderColor: "#334155",
+                    borderRadius: "12px",
+                    color: "#fff",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value: any) => [`$${Number(value).toFixed(2)}`, "Revenue"]}
+                />
+                <Bar dataKey="revenue" fill="#3D1E6D" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Monthly User Signups Chart */}
+        <div className="card-surface p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <LineChartIcon className="w-4 h-4 text-indigo-400" />
+                <span>Monthly Student Signups</span>
+              </h2>
+              <p className="text-xs text-muted">12-month user registration growth</p>
+            </div>
+          </div>
+
+          <div className="h-64 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={monthlySignups}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} />
+                <YAxis stroke="#94a3b8" fontSize={11} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#0f172a",
+                    borderColor: "#334155",
+                    borderRadius: "12px",
+                    color: "#fff",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value: any) => [value, "Signups"]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#6366F1"
+                  strokeWidth={3}
+                  dot={{ fill: "#6366F1", r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Top 5 Selling Courses Table */}
+      <div className="card-surface overflow-hidden">
+        <div className="p-5 border-b border-border flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <Award className="w-4 h-4 text-gold" />
+              <span>Top 5 Performing Courses</span>
+            </h2>
+            <p className="text-xs text-muted">
+              Highest grossing and enrolled catalog titles
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-primary-tint/30 text-muted uppercase font-bold text-[10px] tracking-wider border-b border-border">
+              <tr>
+                <th className="py-3.5 px-4">Course Title</th>
+                <th className="py-3.5 px-4">Instructor</th>
+                <th className="py-3.5 px-4">Price</th>
+                <th className="py-3.5 px-4">Paid Enrollments</th>
+                <th className="py-3.5 px-4">Total Revenue</th>
+                <th className="py-3.5 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {topCourses.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-muted">
+                    No paid course enrollments recorded yet.
+                  </td>
+                </tr>
+              ) : (
+                topCourses.map((c) => (
+                  <tr key={c._id} className="hover:bg-primary-tint/20 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-foreground max-w-xs truncate">
+                      {c.title}
+                    </td>
+                    <td className="py-3.5 px-4 text-muted">{c.instructor}</td>
+                    <td className="py-3.5 px-4 font-medium text-foreground">
+                      {c.price === 0 ? "Free" : `$${c.price.toFixed(2)}`}
+                    </td>
+                    <td className="py-3.5 px-4 font-extrabold text-foreground">
+                      {c.enrollmentsCount}
+                    </td>
+                    <td className="py-3.5 px-4 font-bold text-emerald-400">
+                      ${c.totalRevenue.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <Link
+                        href={`/admin/courses`}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary-dark"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Manage</span>
                       </Link>
                     </td>
                   </tr>
@@ -5431,961 +8191,907 @@ export default function AdminCoursesPage() {
 }
 
 
---- FILE: src/app/admin/courses/[id]/lessons/page.tsx ---
+--- FILE: src/app/admin/questions/page.tsx ---
 "use client";
 
-import React, { useEffect, useState, useCallback, use } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
-  Video,
-  Plus,
-  Edit2,
-  Trash2,
-  Upload,
-  RefreshCw,
-  Eye,
-  Lock,
-  Sparkles,
-  AlertCircle,
-  CheckCircle2,
+  MessageSquare,
+  BookOpen,
+  User,
+  Send,
   Loader2,
-  X,
-  Play,
-  Film,
-  Layers,
+  Trash2,
+  CornerDownRight,
+  ExternalLink,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 
-interface CourseInfo {
-  _id: string;
-  title: string;
-  slug: string;
-  instructor: string;
-  level: string;
-  price: number;
-  isPublished: boolean;
+interface AdminQuestionReply {
+  _id?: string;
+  user?: {
+    name: string;
+  };
+  text: string;
+  createdAt: string;
 }
 
-interface LessonItem {
+interface AdminQuestionItem {
   _id: string;
-  course: string;
-  title: string;
-  order: number;
-  videoUrl: string;
-  durationSeconds: number;
-  isPreview: boolean;
+  course?: {
+    _id: string;
+    title: string;
+    slug: string;
+  };
+  lesson?: {
+    _id: string;
+    title: string;
+    order: number;
+  };
+  user?: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  question: string;
+  replies?: AdminQuestionReply[];
+  createdAt: string;
+}
+
+export default function AdminQuestionsPage() {
+  const [questions, setQuestions] = useState<AdminQuestionItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Admin reply inputs (questionId -> text)
+  const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+
+  const fetchQuestions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/admin/questions", { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.questions)) {
+        setQuestions(data.questions);
+      } else {
+        setError(data.message || "Failed to load admin questions queue.");
+      }
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQuestions();
+  }, []);
+
+  const handleSendReply = async (questionId: string) => {
+    const text = replyTexts[questionId] || "";
+    if (!text.trim()) return;
+
+    try {
+      setSubmittingId(questionId);
+      const res = await fetch(`/api/questions/${questionId}/replies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.trim() }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setReplyTexts((prev) => ({ ...prev, [questionId]: "" }));
+        fetchQuestions();
+      }
+    } catch (err) {
+      console.error("Failed to post reply:", err);
+    } finally {
+      setSubmittingId(null);
+    }
+  };
+
+  const handleDeleteQuestion = async (questionId: string) => {
+    try {
+      const res = await fetch(`/api/questions/${questionId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setQuestions((prev) => prev.filter((q) => q._id !== questionId));
+      }
+    } catch (err) {
+      console.error("Failed to delete question:", err);
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1">
+            <MessageSquare className="w-3.5 h-3.5" />
+            Q&A Queue & Support
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+            Student Questions Queue
+          </h1>
+          <p className="text-xs sm:text-sm text-muted mt-1">
+            Review and reply to student questions across all courses and video lessons.
+          </p>
+        </div>
+      </div>
+
+      {/* Main Questions List */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="card-surface p-12 text-center text-muted">
+            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+            <p className="text-xs font-medium">Loading student questions queue...</p>
+          </div>
+        ) : error ? (
+          <div className="card-surface p-8 text-center text-red text-xs">
+            {error}
+          </div>
+        ) : questions.length === 0 ? (
+          <div className="card-surface p-12 text-center text-muted">
+            <MessageSquare className="w-10 h-10 text-gold mx-auto mb-3 opacity-60" />
+            <h3 className="text-base font-bold text-foreground mb-1">
+              No questions found
+            </h3>
+            <p className="text-xs text-muted">
+              All student inquiries across your course catalog have been answered.
+            </p>
+          </div>
+        ) : (
+          questions.map((q) => {
+            const hasReply = q.replies && q.replies.length > 0;
+
+            return (
+              <div
+                key={q._id}
+                className="card-surface p-5 sm:p-6 space-y-4 border border-border hover:border-primary/30 transition-all"
+              >
+                {/* Header Meta */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-border text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-primary">
+                      {q.course?.title || "Unknown Course"}
+                    </span>
+                    <span className="text-muted">â€¢</span>
+                    <span className="text-foreground font-semibold">
+                      Lesson #{q.lesson?.order}: {q.lesson?.title}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {hasReply ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-tint text-green border border-green/30 flex items-center gap-1">
+                        <CheckCircle2 className="w-2.5 h-2.5" /> Answered
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gold-tint text-gold border border-gold/30 flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5" /> Pending Reply
+                      </span>
+                    )}
+
+                    {q.course?._id && q.lesson?._id && (
+                      <Link
+                        href={`/learn/${q.course._id}/${q.lesson._id}`}
+                        target="_blank"
+                        className="text-muted hover:text-primary p-1 transition"
+                        title="View Lesson Player Page"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
+
+                    <button
+                      onClick={() => handleDeleteQuestion(q._id)}
+                      className="text-muted hover:text-red p-1 transition"
+                      title="Delete Question"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Question Body */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center font-bold text-[10px]">
+                      {q.user?.name ? q.user.name.charAt(0).toUpperCase() : "S"}
+                    </div>
+                    <span className="text-xs font-bold text-foreground">
+                      {q.user?.name || "Student"}{" "}
+                      <span className="text-muted font-normal">({q.user?.email})</span>
+                    </span>
+                    <span className="text-[10px] text-muted ml-auto">
+                      {new Date(q.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-foreground leading-relaxed pl-8 whitespace-pre-line">
+                    {q.question}
+                  </p>
+                </div>
+
+                {/* Existing Replies */}
+                {hasReply && (
+                  <div className="pl-8 space-y-2">
+                    {q.replies?.map((r, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 bg-primary-tint/20 border border-primary/20 rounded-xl space-y-1 text-xs"
+                      >
+                        <div className="flex items-center justify-between text-primary font-bold">
+                          <span className="flex items-center gap-1">
+                            <CornerDownRight className="w-3 h-3" />
+                            {r.user?.name || "Instructor"}
+                          </span>
+                          <span className="text-[10px] text-muted font-normal">
+                            {new Date(r.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-muted leading-relaxed">{r.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Inline Reply Input */}
+                <div className="pt-2 flex items-center gap-2 pl-8">
+                  <input
+                    type="text"
+                    placeholder="Type official instructor reply..."
+                    value={replyTexts[q._id] || ""}
+                    onChange={(e) =>
+                      setReplyTexts((prev) => ({
+                        ...prev,
+                        [q._id]: e.target.value,
+                      }))
+                    }
+                    className="flex-1 px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    onClick={() => handleSendReply(q._id)}
+                    disabled={submittingId === q._id}
+                    className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition"
+                  >
+                    {submittingId === q._id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                    <span>Send Reply</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+--- FILE: src/app/admin/users/page.tsx ---
+"use client";
+
+import React, { useEffect, useState, useCallback } from "react";
+import { useAuth } from "@/context/AuthContext";
+import {
+  Users,
+  Search,
+  Filter,
+  Shield,
+  ShieldAlert,
+  UserCheck,
+  UserX,
+  Eye,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+  CheckCircle2,
+  X,
+  BookOpen,
+  Calendar,
+  CreditCard,
+  User as UserIcon,
+} from "lucide-react";
+
+interface UserRecord {
+  _id: string;
+  name: string;
+  email: string;
+  role: "student" | "admin";
+  isActive: boolean;
+  enrollmentCount: number;
   createdAt: string;
   updatedAt: string;
 }
 
-interface NewLessonFormData {
-  title: string;
-  order: number | string;
-  isPreview: boolean;
-  videoFile: File | null;
+interface EnrollmentDetail {
+  _id: string;
+  course?: {
+    _id: string;
+    title: string;
+    slug: string;
+    thumbnailUrl?: string;
+    price: number;
+  };
+  amount: number;
+  paymentStatus: "Pending" | "Paid";
+  enrolledAt: string;
 }
 
-interface EditLessonFormData {
-  title: string;
-  order: number | string;
-  isPreview: boolean;
-}
+export default function AdminUsersPage() {
+  const { user: currentAdmin } = useAuth();
 
-export default function AdminCourseLessonsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const resolvedParams = use(params);
-  const courseId = resolvedParams.id;
-
-  const [course, setCourse] = useState<CourseInfo | null>(null);
-  const [lessons, setLessons] = useState<LessonItem[]>([]);
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [total, setTotal] = useState<number>(0);
+  const [page, setPage] = useState<number>(1);
+  const [pages, setPages] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Status alerts
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  // Filter & Search states
+  const [keyword, setKeyword] = useState<string>("");
+  const [roleFilter, setRoleFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
 
-  // New Lesson Form
-  const [newLessonData, setNewLessonData] = useState<NewLessonFormData>({
-    title: "",
-    order: "",
-    isPreview: false,
-    videoFile: null,
-  });
-  const [isUploading, setIsUploading] = useState<boolean>(false);
+  // Action / Confirmation Modal states
+  const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
+  const [actionType, setActionType] = useState<"role" | "suspend" | null>(null);
+  const [actionLoading, setActionLoading] = useState<boolean>(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Edit Metadata Modal
-  const [editingLesson, setEditingLesson] = useState<LessonItem | null>(null);
-  const [editFormData, setEditFormData] = useState<EditLessonFormData>({
-    title: "",
-    order: 1,
-    isPreview: false,
-  });
-  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  // User Detail / Enrollment History Modal states
+  const [detailUser, setDetailUser] = useState<UserRecord | null>(null);
+  const [detailEnrollments, setDetailEnrollments] = useState<EnrollmentDetail[]>([]);
+  const [detailLoading, setDetailLoading] = useState<boolean>(false);
 
-  // Replace Video Modal
-  const [replacingLesson, setReplacingLesson] = useState<LessonItem | null>(null);
-  const [replaceVideoFile, setReplaceVideoFile] = useState<File | null>(null);
-  const [isReplacingVideo, setIsReplacingVideo] = useState<boolean>(false);
-
-  // Delete Lesson Modal
-  const [deletingLesson, setDeletingLesson] = useState<LessonItem | null>(null);
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
-
-  const fetchCourseAndLessons = useCallback(async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      setErrorMessage(null);
+      setError(null);
 
-      const [courseRes, lessonsRes] = await Promise.all([
-        fetch(`/api/courses/${courseId}`, { cache: "no-store" }),
-        fetch(`/api/courses/${courseId}/lessons`, { cache: "no-store" }),
-      ]);
+      const params = new URLSearchParams();
+      params.set("page", page.toString());
+      params.set("limit", "10");
+      if (keyword.trim()) params.set("keyword", keyword.trim());
+      if (roleFilter) params.set("role", roleFilter);
+      if (statusFilter) params.set("status", statusFilter);
 
-      const courseData = await courseRes.json();
-      const lessonsData = await lessonsRes.json();
+      const res = await fetch(`/api/admin/users?${params.toString()}`);
+      const data = await res.json();
 
-      if (!courseRes.ok || !courseData.success || !courseData.course) {
-        setErrorMessage(courseData.message || "Failed to load course details.");
-        return;
-      }
-      setCourse(courseData.course);
-
-      if (lessonsData.success && Array.isArray(lessonsData.lessons)) {
-        setLessons(lessonsData.lessons);
-        // Pre-fill next order for convenience
-        const nextOrder =
-          lessonsData.lessons.length > 0
-            ? Math.max(...lessonsData.lessons.map((l: LessonItem) => l.order)) + 1
-            : 1;
-        setNewLessonData((prev) => ({
-          ...prev,
-          order: nextOrder,
-        }));
+      if (res.ok && data.success) {
+        setUsers(data.users);
+        setTotal(data.total);
+        setPages(data.pages);
+      } else {
+        setError(data.message || "Failed to load users");
       }
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to fetch course lessons.");
+      setError(err.message || "An error occurred while fetching users");
     } finally {
       setLoading(false);
     }
-  }, [courseId]);
+  }, [page, keyword, roleFilter, statusFilter]);
 
   useEffect(() => {
-    if (courseId) {
-      fetchCourseAndLessons();
-    }
-  }, [courseId, fetchCourseAndLessons]);
+    fetchUsers();
+  }, [fetchUsers]);
 
-  // Handle Add Lesson Submission
-  const handleAddLessonSubmit = async (e: React.FormEvent) => {
+  // Handle Search submit
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setPage(1);
+    fetchUsers();
+  };
 
-    if (!newLessonData.title.trim()) {
-      setErrorMessage("Please enter a lesson title.");
-      return;
+  // Open User Detail Modal
+  const openDetailModal = async (u: UserRecord) => {
+    setDetailUser(u);
+    setDetailEnrollments([]);
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${u._id}`);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDetailEnrollments(data.enrollments || []);
+      }
+    } catch (e) {
+      console.error("Failed to load user enrollment history", e);
+    } finally {
+      setDetailLoading(false);
     }
+  };
 
-    if (!newLessonData.videoFile) {
-      setErrorMessage("Please select a video file (MP4, WebM, or QuickTime).");
-      return;
-    }
-
-    // Client-side quick checks
-    const allowedTypes = ["video/mp4", "video/webm", "video/quicktime"];
-    if (!allowedTypes.includes(newLessonData.videoFile.type)) {
-      setErrorMessage("Invalid file format. Please upload an MP4, WebM, or QuickTime video.");
-      return;
-    }
-
-    if (newLessonData.videoFile.size > 200 * 1024 * 1024) {
-      const sizeMB = (newLessonData.videoFile.size / (1024 * 1024)).toFixed(2);
-      setErrorMessage(`Video size (${sizeMB}MB) exceeds 200MB maximum limit.`);
-      return;
-    }
+  // Trigger Role or Suspend action API
+  const handleExecuteAction = async () => {
+    if (!selectedUser || !actionType) return;
 
     try {
-      setIsUploading(true);
-      setErrorMessage(null);
-      setSuccessMessage(null);
+      setActionLoading(true);
+      setActionError(null);
 
-      const formData = new FormData();
-      formData.append("title", newLessonData.title.trim());
-      formData.append("order", String(newLessonData.order || 1));
-      formData.append("isPreview", String(newLessonData.isPreview));
-      formData.append("video", newLessonData.videoFile);
+      const updatePayload: { role?: string; isActive?: boolean } = {};
 
-      const res = await fetch(`/api/courses/${courseId}/lessons`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setErrorMessage(data.message || "Failed to upload video and create lesson.");
-        return;
+      if (actionType === "role") {
+        updatePayload.role = selectedUser.role === "admin" ? "student" : "admin";
+      } else if (actionType === "suspend") {
+        updatePayload.isActive = !selectedUser.isActive;
       }
 
-      setSuccessMessage(`Lesson "${data.lesson.title}" uploaded & created successfully!`);
-
-      // Reset form
-      const nextOrder = (Number(newLessonData.order) || 1) + 1;
-      setNewLessonData({
-        title: "",
-        order: nextOrder,
-        isPreview: false,
-        videoFile: null,
-      });
-
-      // Clear file input element
-      const fileInput = document.getElementById("lesson-video-file-input") as HTMLInputElement;
-      if (fileInput) fileInput.value = "";
-
-      await fetchCourseAndLessons();
-    } catch (err: any) {
-      setErrorMessage(err.message || "An unexpected error occurred during video upload.");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  // Open Edit Metadata Modal
-  const openEditModal = (lesson: LessonItem) => {
-    setEditingLesson(lesson);
-    setEditFormData({
-      title: lesson.title,
-      order: lesson.order,
-      isPreview: lesson.isPreview,
-    });
-    setErrorMessage(null);
-  };
-
-  const handleEditLessonSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingLesson) return;
-
-    if (!editFormData.title.trim()) {
-      setErrorMessage("Lesson title cannot be empty.");
-      return;
-    }
-
-    try {
-      setIsUpdating(true);
-      setErrorMessage(null);
-      setSuccessMessage(null);
-
-      const res = await fetch(`/api/lessons/${editingLesson._id}`, {
+      const res = await fetch(`/api/admin/users/${selectedUser._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: editFormData.title.trim(),
-          order: Number(editFormData.order),
-          isPreview: editFormData.isPreview,
-        }),
+        body: JSON.stringify(updatePayload),
       });
 
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setErrorMessage(data.message || "Failed to update lesson.");
+        setActionError(data.message || "Failed to update user");
         return;
       }
 
-      setSuccessMessage(`Lesson "${data.lesson.title}" updated successfully.`);
-      setEditingLesson(null);
-      await fetchCourseAndLessons();
+      // Success
+      setSelectedUser(null);
+      setActionType(null);
+      fetchUsers();
     } catch (err: any) {
-      setErrorMessage(err.message || "An unexpected error occurred.");
+      setActionError(err.message || "An unexpected error occurred");
     } finally {
-      setIsUpdating(false);
+      setActionLoading(false);
     }
   };
-
-  // Open Replace Video Modal
-  const openReplaceVideoModal = (lesson: LessonItem) => {
-    setReplacingLesson(lesson);
-    setReplaceVideoFile(null);
-    setErrorMessage(null);
-  };
-
-  const handleReplaceVideoSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!replacingLesson || !replaceVideoFile) {
-      setErrorMessage("Please select a new video file.");
-      return;
-    }
-
-    try {
-      setIsReplacingVideo(true);
-      setErrorMessage(null);
-      setSuccessMessage(null);
-
-      const formData = new FormData();
-      formData.append("video", replaceVideoFile);
-
-      const res = await fetch(`/api/lessons/${replacingLesson._id}/video`, {
-        method: "PUT",
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setErrorMessage(data.message || "Failed to replace lesson video.");
-        return;
-      }
-
-      setSuccessMessage(`Video for "${replacingLesson.title}" replaced successfully!`);
-      setReplacingLesson(null);
-      setReplaceVideoFile(null);
-      await fetchCourseAndLessons();
-    } catch (err: any) {
-      setErrorMessage(err.message || "An error occurred while uploading new video.");
-    } finally {
-      setIsReplacingVideo(false);
-    }
-  };
-
-  // Handle Delete Lesson
-  const handleDeleteLessonSubmit = async () => {
-    if (!deletingLesson) return;
-
-    try {
-      setIsDeleting(true);
-      setErrorMessage(null);
-      setSuccessMessage(null);
-
-      const res = await fetch(`/api/lessons/${deletingLesson._id}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setErrorMessage(data.message || "Failed to delete lesson.");
-        return;
-      }
-
-      setSuccessMessage(`Lesson "${deletingLesson.title}" deleted.`);
-      setDeletingLesson(null);
-      await fetchCourseAndLessons();
-    } catch (err: any) {
-      setErrorMessage(err.message || "Failed to delete lesson.");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  if (loading && !course) {
-    return (
-      <div className="min-h-[50vh] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-sm font-medium text-muted">Loading course & lessons...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-16">
-      {/* Back Navigation & Course Header */}
-      <div>
-        <Link
-          href="/admin/courses"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-primary mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to All Courses</span>
-        </Link>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1">
+            <Users className="w-3.5 h-3.5" />
+            User Management
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+            User Accounts & Roles
+          </h1>
+          <p className="text-xs sm:text-sm text-muted mt-1">
+            Search users, manage system roles, monitor course enrollments, and manage account statuses.
+          </p>
+        </div>
+      </div>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-primary-tint text-primary text-xs font-bold uppercase tracking-wider">
-                <Layers className="w-3.5 h-3.5" />
-                Curriculum Editor
-              </span>
-              {course?.isPublished ? (
-                <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-green-tint text-green border border-green/30">
-                  Published
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gold-tint text-gold border border-gold/30">
-                  Draft
-                </span>
-              )}
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
-              {course?.title || "Course Lessons"}
-            </h1>
-            <p className="text-xs sm:text-sm text-muted mt-1">
-              Upload videos, configure lesson order, and manage free preview access.
-            </p>
+      {/* Filter and Search Controls */}
+      <div className="card-surface p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        <form onSubmit={handleSearchSubmit} className="w-full md:w-auto flex-1 flex items-center gap-2">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-xl text-xs font-medium text-foreground focus:outline-none focus:border-primary transition"
+            />
+          </div>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-xl transition shadow-sm"
+          >
+            Search
+          </button>
+        </form>
+
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* Role Filter */}
+          <div className="flex items-center gap-1.5 text-xs text-muted">
+            <Filter className="w-3.5 h-3.5" />
+            <select
+              value={roleFilter}
+              onChange={(e) => {
+                setRoleFilter(e.target.value);
+                setPage(1);
+              }}
+              className="bg-background border border-border rounded-xl px-3 py-2 text-xs font-medium text-foreground focus:outline-none focus:border-primary"
+            >
+              <option value="">All Roles</option>
+              <option value="student">Student</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/courses/${courseId}`}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-surface hover:bg-black/5 text-foreground border border-border transition-all"
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            className="bg-background border border-border rounded-xl px-3 py-2 text-xs font-medium text-foreground focus:outline-none focus:border-primary"
+          >
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Main Users Table */}
+      <div className="card-surface overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-primary-tint/30 text-muted uppercase font-bold text-[10px] tracking-wider border-b border-border">
+              <tr>
+                <th className="py-3.5 px-4">User</th>
+                <th className="py-3.5 px-4">Role</th>
+                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4">Enrollments</th>
+                <th className="py-3.5 px-4">Joined Date</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-muted">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      <span>Loading user directory...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-red">
+                    {error}
+                  </td>
+                </tr>
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-muted">
+                    No user accounts match your search filters.
+                  </td>
+                </tr>
+              ) : (
+                users.map((u) => {
+                  const isCurrentAdminSelf = currentAdmin?._id.toString() === u._id;
+
+                  return (
+                    <tr key={u._id} className="hover:bg-primary-tint/20 transition-colors">
+                      {/* Name & Email */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-foreground block">
+                              {u.name}{" "}
+                              {isCurrentAdminSelf && (
+                                <span className="text-[10px] text-gold font-bold bg-gold-tint px-1.5 py-0.5 rounded border border-gold/30">
+                                  You
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-muted text-[11px] block">{u.email}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Role Badge */}
+                      <td className="py-3.5 px-4">
+                        {u.role === "admin" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-gold-tint text-gold border border-gold/30">
+                            <Shield className="w-3 h-3" />
+                            Admin
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-primary-tint text-primary border border-primary/20">
+                            <UserIcon className="w-3 h-3" />
+                            Student
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Status Badge */}
+                      <td className="py-3.5 px-4">
+                        {u.isActive ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-tint text-green border border-green/30">
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-tint text-red border border-red/30">
+                            <AlertCircle className="w-2.5 h-2.5" />
+                            Suspended
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Enrollment Count */}
+                      <td className="py-3.5 px-4 font-semibold text-foreground">
+                        {u.enrollmentCount} {u.enrollmentCount === 1 ? "course" : "courses"}
+                      </td>
+
+                      {/* Joined Date */}
+                      <td className="py-3.5 px-4 text-muted">
+                        {new Date(u.createdAt).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {/* View Enrollments Detail */}
+                          <button
+                            onClick={() => openDetailModal(u)}
+                            className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-primary-tint transition-colors"
+                            title="View Enrollment History"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+
+                          {/* Role Change Button */}
+                          <button
+                            onClick={() => {
+                              setSelectedUser(u);
+                              setActionType("role");
+                              setActionError(null);
+                            }}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              u.role === "admin"
+                                ? "text-gold hover:bg-gold-tint"
+                                : "text-muted hover:text-primary hover:bg-primary-tint"
+                            }`}
+                            title={u.role === "admin" ? "Demote to Student" : "Promote to Admin"}
+                          >
+                            <Shield className="w-4 h-4" />
+                          </button>
+
+                          {/* Suspend / Reactivate Button */}
+                          <button
+                            onClick={() => {
+                              setSelectedUser(u);
+                              setActionType("suspend");
+                              setActionError(null);
+                            }}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              u.isActive
+                                ? "text-muted hover:text-red hover:bg-red-tint"
+                                : "text-green hover:bg-green-tint"
+                            }`}
+                            title={u.isActive ? "Suspend Account" : "Reactivate Account"}
+                          >
+                            {u.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Bar */}
+        <div className="p-4 border-t border-border flex items-center justify-between text-xs text-muted">
+          <span>
+            Showing {users.length > 0 ? (page - 1) * 10 + 1 : 0} to{" "}
+            {Math.min(page * 10, total)} of {total} users
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || loading}
+              className="p-2 rounded-xl bg-background border border-border disabled:opacity-40 hover:bg-black/5 transition"
             >
-              <Eye className="w-3.5 h-3.5 text-primary" />
-              <span>Public View</span>
-            </Link>
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="font-semibold text-foreground">
+              Page {page} of {pages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(pages, p + 1))}
+              disabled={page >= pages || loading}
+              className="p-2 rounded-xl bg-background border border-border disabled:opacity-40 hover:bg-black/5 transition"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Status Alerts */}
-      {errorMessage && (
-        <div className="p-4 rounded-xl bg-red-tint border border-red/30 text-red flex items-start gap-3 text-sm animate-fadeIn">
-          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-          <div className="flex-1 font-medium">{errorMessage}</div>
-          <button
-            onClick={() => setErrorMessage(null)}
-            className="text-red font-bold text-xs hover:underline"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="p-4 rounded-xl bg-green-tint border border-green/30 text-green flex items-start gap-3 text-sm animate-fadeIn">
-          <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
-          <div className="flex-1 font-medium">{successMessage}</div>
-          <button
-            onClick={() => setSuccessMessage(null)}
-            className="text-green font-bold text-xs hover:underline"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Main Grid: Add Lesson Form + Lesson List */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Add Lesson Form */}
-        <div className="lg:col-span-1">
-          <div className="card-surface p-6 sm:p-7 sticky top-24 space-y-5">
-            <div className="flex items-center gap-2 pb-3 border-b border-border">
-              <div className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center shadow-sm">
-                <Plus className="w-4 h-4 text-gold" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-foreground">Add New Lesson</h2>
-                <p className="text-[11px] text-muted">Upload video to Vercel Blob</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleAddLessonSubmit} className="space-y-4">
-              {/* Lesson Title */}
-              <div>
-                <label className="block text-xs font-semibold text-foreground mb-1">
-                  Lesson Title <span className="text-red">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newLessonData.title}
-                  onChange={(e) =>
-                    setNewLessonData({ ...newLessonData, title: e.target.value })
-                  }
-                  placeholder="e.g. 01 - Architecture Overview"
-                  required
-                  disabled={isUploading}
-                  className="w-full px-3 py-2 rounded-xl bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-50"
-                />
-              </div>
-
-              {/* Order and Preview Toggle */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Lesson Order # <span className="text-red">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={newLessonData.order}
-                    onChange={(e) =>
-                      setNewLessonData({ ...newLessonData, order: e.target.value })
-                    }
-                    required
-                    disabled={isUploading}
-                    className="w-full px-3 py-2 rounded-xl bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Access Level
-                  </label>
-                  <label className="flex items-center gap-2 pt-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={newLessonData.isPreview}
-                      onChange={(e) =>
-                        setNewLessonData({
-                          ...newLessonData,
-                          isPreview: e.target.checked,
-                        })
-                      }
-                      disabled={isUploading}
-                      className="w-4 h-4 rounded text-primary focus:ring-primary/20 border-border"
-                    />
-                    <span className="text-xs font-medium text-foreground">
-                      Free Preview
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Video File Picker */}
-              <div>
-                <label className="block text-xs font-semibold text-foreground mb-1">
-                  Video File (MP4, WebM, QuickTime, max 200MB) <span className="text-red">*</span>
-                </label>
-                <div className="border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary/50 transition-colors bg-background/50">
-                  <input
-                    id="lesson-video-file-input"
-                    type="file"
-                    accept="video/mp4,video/webm,video/quicktime"
-                    required
-                    disabled={isUploading}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] || null;
-                      setNewLessonData({ ...newLessonData, videoFile: file });
-                    }}
-                    className="hidden"
-                  />
-                  <label
-                    htmlFor="lesson-video-file-input"
-                    className="cursor-pointer flex flex-col items-center gap-2"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-primary-tint text-primary flex items-center justify-center">
-                      <Upload className="w-5 h-5" />
-                    </div>
-                    {newLessonData.videoFile ? (
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold text-foreground truncate max-w-[220px]">
-                          {newLessonData.videoFile.name}
-                        </p>
-                        <p className="text-[10px] text-muted">
-                          {(newLessonData.videoFile.size / (1024 * 1024)).toFixed(2)} MB • Ready to upload
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-xs font-semibold text-foreground">
-                          Click to select video file
-                        </p>
-                        <p className="text-[10px] text-muted mt-0.5">
-                          MP4, WebM or MOV up to 200MB
-                        </p>
-                      </div>
-                    )}
-                  </label>
-                </div>
-              </div>
-
-              {/* Upload Progress Feedback Banner */}
-              {isUploading && (
-                <div className="p-3.5 rounded-xl bg-primary-tint text-primary border border-primary/20 flex items-center gap-3 text-xs animate-pulse">
-                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                  <div className="leading-tight">
-                    <p className="font-bold">Uploading video to Vercel Blob...</p>
-                    <p className="text-[10px] opacity-80 mt-0.5">
-                      Please keep this window open until complete.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isUploading || !newLessonData.videoFile}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary-dark transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isUploading ? (
+      {/* Confirmation Action Modal (Role Change or Suspend) */}
+      {selectedUser && actionType && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                {actionType === "role" ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Uploading Video...</span>
+                    <Shield className="w-5 h-5 text-indigo-400" />
+                    <span>Change System Role</span>
                   </>
                 ) : (
                   <>
-                    <Plus className="w-4 h-4 text-gold" />
-                    <span>Create & Upload Lesson</span>
+                    <ShieldAlert className="w-5 h-5 text-amber-400" />
+                    <span>{selectedUser.isActive ? "Suspend User Account" : "Reactivate User Account"}</span>
                   </>
                 )}
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Right Column: Existing Lessons List & Preview Players */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-              <Film className="w-4 h-4 text-primary" />
-              Course Curriculum ({lessons.length} {lessons.length === 1 ? "Lesson" : "Lessons"})
-            </h2>
-            <button
-              onClick={fetchCourseAndLessons}
-              className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-black/5 text-xs inline-flex items-center gap-1 transition-colors"
-              title="Refresh lessons"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Refresh</span>
-            </button>
-          </div>
-
-          {lessons.length === 0 ? (
-            <div className="card-surface p-12 text-center border-dashed">
-              <div className="w-12 h-12 rounded-2xl bg-primary-tint text-primary mx-auto flex items-center justify-center mb-3">
-                <Video className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-foreground mb-1">
-                No lessons created yet
-              </h3>
-              <p className="text-xs text-muted max-w-sm mx-auto">
-                Use the form on the left to upload your first lesson video and establish the course curriculum.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {lessons.map((lesson) => (
-                <div
-                  key={lesson._id}
-                  className="card-surface p-5 sm:p-6 transition-all hover:border-primary/30 space-y-4"
-                >
-                  {/* Top Bar of Lesson Card */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-primary-tint text-primary font-bold text-xs flex items-center justify-center shrink-0">
-                        #{lesson.order}
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-foreground">
-                          {lesson.title}
-                        </h3>
-                        <p className="text-[11px] text-muted">
-                          Added {new Date(lesson.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 self-start sm:self-auto">
-                      {lesson.isPreview ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-tint text-green border border-green/30">
-                          <Play className="w-2.5 h-2.5 fill-current" />
-                          Free Preview
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 border border-gray-200">
-                          <Lock className="w-2.5 h-2.5" />
-                          Enrolled Only
-                        </span>
-                      )}
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-1 ml-2 border-l border-border pl-2">
-                        <Link
-                          href={`/learn/${courseId}/${lesson._id}`}
-                          className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-primary-tint transition-colors"
-                          title="Open in Player"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </Link>
-                        <button
-                          onClick={() => openReplaceVideoModal(lesson)}
-                          className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-primary-tint transition-colors"
-                          title="Replace Video File"
-                        >
-                          <Upload className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => openEditModal(lesson)}
-                          className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-black/5 transition-colors"
-                          title="Edit Lesson Metadata"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setDeletingLesson(lesson)}
-                          className="p-1.5 rounded-lg text-muted hover:text-red hover:bg-red-tint transition-colors"
-                          title="Delete Lesson"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Inline Video Player Preview */}
-                  {lesson.videoUrl ? (
-                    <div className="rounded-xl overflow-hidden bg-black border border-border shadow-inner">
-                      <video
-                        controls
-                        preload="metadata"
-                        className="w-full max-h-[300px] object-contain mx-auto"
-                        src={lesson.videoUrl}
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    </div>
-                  ) : (
-                    <div className="p-6 rounded-xl bg-primary-tint/20 text-center border border-border">
-                      <p className="text-xs text-muted">No video attached.</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Edit Metadata Modal */}
-      {editingLesson && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="card-surface p-6 max-w-md w-full shadow-2xl animate-fadeIn">
-            <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
-              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                <Edit2 className="w-4 h-4 text-primary" />
-                Edit Lesson
               </h3>
               <button
-                onClick={() => setEditingLesson(null)}
-                className="p-1 rounded-lg text-muted hover:text-foreground hover:bg-black/5 transition-colors"
+                onClick={() => {
+                  setSelectedUser(null);
+                  setActionType(null);
+                }}
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleEditLessonSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-foreground mb-1">
-                  Lesson Title <span className="text-red">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={editFormData.title}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, title: e.target.value })
-                  }
-                  required
-                  className="w-full px-3 py-2 rounded-xl bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
-                />
+            {actionError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium rounded-xl flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{actionError}</span>
               </div>
+            )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Order Number <span className="text-red">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={editFormData.order}
-                    onChange={(e) =>
-                      setEditFormData({ ...editFormData, order: e.target.value })
-                    }
-                    required
-                    className="w-full px-3 py-2 rounded-xl bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Preview Access
-                  </label>
-                  <label className="flex items-center gap-2 pt-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={editFormData.isPreview}
-                      onChange={(e) =>
-                        setEditFormData({
-                          ...editFormData,
-                          isPreview: e.target.checked,
-                        })
-                      }
-                      className="w-4 h-4 rounded text-primary focus:ring-primary/20 border-border"
-                    />
-                    <span className="text-xs font-medium text-foreground">
-                      Free Preview
+            <p className="text-sm text-slate-300 leading-relaxed">
+              {actionType === "role" ? (
+                <>
+                  Are you sure you want to change{" "}
+                  <strong className="text-white">{selectedUser.name}</strong>&apos;s role from{" "}
+                  <strong className="uppercase text-indigo-400">{selectedUser.role}</strong> to{" "}
+                  <strong className="uppercase text-indigo-400">
+                    {selectedUser.role === "admin" ? "student" : "admin"}
+                  </strong>
+                  ?
+                </>
+              ) : (
+                <>
+                  Are you sure you want to{" "}
+                  <strong className={selectedUser.isActive ? "text-amber-400" : "text-emerald-400"}>
+                    {selectedUser.isActive ? "suspend" : "reactivate"}
+                  </strong>{" "}
+                  <strong className="text-white">{selectedUser.name}</strong> ({selectedUser.email})?
+                  {selectedUser.isActive && (
+                    <span className="block mt-2 text-xs text-slate-400">
+                      Suspended users immediately lose access to API routes and cannot log in.
                     </span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-border flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingLesson(null)}
-                  disabled={isUpdating}
-                  className="px-3 py-1.5 text-xs font-semibold text-muted hover:text-foreground bg-surface border border-border rounded-xl transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUpdating}
-                  className="px-4 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-dark rounded-xl shadow-md shadow-primary/20 transition-all flex items-center gap-1.5"
-                >
-                  {isUpdating ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <span>Save Changes</span>
                   )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Replace Video Modal */}
-      {replacingLesson && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="card-surface p-6 max-w-md w-full shadow-2xl animate-fadeIn">
-            <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
-              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                <Upload className="w-4 h-4 text-primary" />
-                Replace Video File
-              </h3>
-              <button
-                onClick={() => setReplacingLesson(null)}
-                className="p-1 rounded-lg text-muted hover:text-foreground hover:bg-black/5 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-muted mb-4">
-              Upload a new video for <strong className="text-foreground">{replacingLesson.title}</strong>. This replaces the existing streaming asset in Vercel Blob.
-            </p>
-
-            <form onSubmit={handleReplaceVideoSubmit} className="space-y-4">
-              <div className="border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary/50 transition-colors bg-background/50">
-                <input
-                  id="replace-video-file-input"
-                  type="file"
-                  accept="video/mp4,video/webm,video/quicktime"
-                  required
-                  disabled={isReplacingVideo}
-                  onChange={(e) => setReplaceVideoFile(e.target.files?.[0] || null)}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="replace-video-file-input"
-                  className="cursor-pointer flex flex-col items-center gap-2"
-                >
-                  <div className="w-9 h-9 rounded-full bg-primary-tint text-primary flex items-center justify-center">
-                    <Upload className="w-4 h-4" />
-                  </div>
-                  {replaceVideoFile ? (
-                    <div className="space-y-1">
-                      <p className="text-xs font-bold text-foreground truncate max-w-[240px]">
-                        {replaceVideoFile.name}
-                      </p>
-                      <p className="text-[10px] text-muted">
-                        {(replaceVideoFile.size / (1024 * 1024)).toFixed(2)} MB
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">
-                        Select replacement video
-                      </p>
-                      <p className="text-[10px] text-muted">
-                        MP4, WebM or MOV up to 200MB
-                      </p>
-                    </div>
-                  )}
-                </label>
-              </div>
-
-              {isReplacingVideo && (
-                <div className="p-3 rounded-xl bg-primary-tint text-primary border border-primary/20 flex items-center gap-2 text-xs animate-pulse">
-                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                  <span>Uploading replacement video to Vercel Blob...</span>
-                </div>
+                </>
               )}
-
-              <div className="pt-3 border-t border-border flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setReplacingLesson(null)}
-                  disabled={isReplacingVideo}
-                  className="px-3 py-1.5 text-xs font-semibold text-muted hover:text-foreground bg-surface border border-border rounded-xl transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isReplacingVideo || !replaceVideoFile}
-                  className="px-4 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-dark rounded-xl shadow-md shadow-primary/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  {isReplacingVideo ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Uploading...</span>
-                    </>
-                  ) : (
-                    <span>Upload & Replace</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Lesson Confirmation Modal */}
-      {deletingLesson && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="card-surface p-6 max-w-md w-full shadow-2xl animate-fadeIn">
-            <div className="w-10 h-10 rounded-xl bg-red-tint text-red flex items-center justify-center mb-3">
-              <Trash2 className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-foreground mb-1">
-              Delete Lesson?
-            </h3>
-            <p className="text-xs text-muted leading-relaxed mb-5">
-              Are you sure you want to delete lesson #{deletingLesson.order}:{" "}
-              <strong className="text-foreground">&quot;{deletingLesson.title}&quot;</strong>?
             </p>
 
-            <div className="flex items-center justify-end gap-2">
+            <div className="pt-3 flex justify-end gap-3 border-t border-slate-800">
               <button
-                onClick={() => setDeletingLesson(null)}
-                disabled={isDeleting}
-                className="px-3 py-1.5 text-xs font-semibold text-muted hover:text-foreground bg-surface border border-border rounded-xl transition-all"
+                onClick={() => {
+                  setSelectedUser(null);
+                  setActionType(null);
+                }}
+                disabled={actionLoading}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 transition"
               >
                 Cancel
               </button>
               <button
-                onClick={handleDeleteLessonSubmit}
-                disabled={isDeleting}
-                className="px-4 py-1.5 text-xs font-semibold text-white bg-red hover:bg-red/90 rounded-xl shadow-md shadow-red/20 transition-all flex items-center gap-1.5"
+                onClick={handleExecuteAction}
+                disabled={actionLoading}
+                className={`px-4 py-2 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow-md transition ${
+                  actionType === "suspend" && selectedUser.isActive
+                    ? "bg-red-600 hover:bg-red-500 shadow-red-600/20"
+                    : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20"
+                }`}
               >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Deleting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Confirm Delete</span>
-                  </>
-                )}
+                {actionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Confirm Change</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Enrollment History Modal */}
+      {detailUser && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <UserIcon className="w-5 h-5 text-indigo-400" />
+                  <span>{detailUser.name}</span>
+                </h3>
+                <p className="text-xs text-slate-400">{detailUser.email}</p>
+              </div>
+              <button
+                onClick={() => setDetailUser(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-indigo-400" />
+                <span>Enrollment History ({detailEnrollments.length})</span>
+              </h4>
+
+              {detailLoading ? (
+                <div className="py-8 text-center text-slate-400 text-xs flex justify-center items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                  <span>Loading enrollment history...</span>
+                </div>
+              ) : detailEnrollments.length === 0 ? (
+                <div className="p-6 bg-slate-800/40 rounded-xl text-center text-xs text-slate-400">
+                  This user has not enrolled in any courses yet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {detailEnrollments.map((item) => (
+                    <div
+                      key={item._id}
+                      className="p-3 bg-slate-800/60 border border-slate-700/60 rounded-xl flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <span className="font-bold text-white block">
+                          {item.course?.title || "Unknown Course"}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          Enrolled on{" "}
+                          {new Date(item.enrolledAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-slate-200">
+                          {item.amount === 0 ? "Free" : `$${item.amount.toFixed(2)}`}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            item.paymentStatus === "Paid"
+                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                          }`}
+                        >
+                          {item.paymentStatus}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-800 text-right">
+              <button
+                onClick={() => setDetailUser(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl transition"
+              >
+                Close
               </button>
             </div>
           </div>
@@ -6395,1502 +9101,4 @@ export default function AdminCourseLessonsPage({
   );
 }
 
-
-## LEVEL 5: DOCUMENTATION, SPECS & PROJECT SCRIPTS
-
---- FILE: README.md ---
-<div align="center">
-
-# ⚡ EduPulse LMS — Full-Stack Next.js 15 Learning Management System
-
-An industrial-grade, full-stack Learning Management System built with **Next.js 15 (App Router)**, **MongoDB Mongoose**, **Secure HTTP-Only JWT Cookie Authentication**, **Vercel Blob Video Streaming**, and **Stripe Payments**. Built incrementally in structured parts.
-
-[![Next.js](https://img.shields.io/badge/Next.js-15.5-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose%208.5-green?style=for-the-badge&logo=mongodb)](https://mongoosejs.com/)
-[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-
-</div>
-
----
-
-## 🗺️ Project Roadmap & Progress
-
-| Part | Phase | Status | Key Deliverables |
-| :--- | :--- | :---: | :--- |
-| **Part 1** | **Foundation & Auth Engine** | ✅ **Completed** | Next.js 15 Setup, 5 Mongoose Schemas, HTTP-Only JWT Auth, Protected Dashboard |
-| **Part 2** | **Course Catalog & Admin CRUD** | ✅ **Completed** | Public Catalog, Filter/Search, Course Detail, Categories & Course Admin Studio |
-| **Part 3** | **Lessons & Video Streaming** | ✅ **Completed** | Vercel Blob Video Upload, Admin Curriculum Studio, Gated Player & HTTP Streaming |
-| **Part 4** | **Payments & Enrollments** | ⏳ *Upcoming* | Stripe Webhooks, Checkout Sessions, Enrollment Guard & Invoices |
-| **Part 5** | **Analytics & Administration** | ⏳ *Upcoming* | Revenue Charts, Enrollment Analytics, User Role Access Controls |
-| **Part 6** | **Deployment & Polish** | ⏳ *Upcoming* | Production Deployment, Security Audits & Optimizations |
-
----
-
----
-
-## 🏛️ Part 1: Foundation Overview
-
-In **Part 1**, we built the core architecture and full-stack authentication system:
-
-- **Database Model Layer (`src/models/`):** Initialized all 5 core Mongoose schemas with validation, compound indexing, and hot-reload safe exports (`User`, `Category`, `Course`, `Lesson`, `Enrollment`).
-- **Stateless JWT Auth Engine (`src/lib/`):** Cached MongoDB connection handler (`src/lib/db.ts`), JWT signing & verification (`src/lib/jwt.ts`), HTTP-Only cookie auth (`lms_token`), and session extractors (`src/lib/auth.ts`).
-- **RESTful Auth Endpoints (`src/app/api/auth/`):** Registration, login, logout, and `/api/auth/me`.
-- **Client Session Context & Protection:** `AuthContext.tsx` with role-aware header navigation and `/dashboard` client/server redirection.
-
----
-
-## 📚 Part 2: Course Catalog & Admin CRUD
-
-In **Part 2**, we built the course taxonomy, public catalog, detail views, and dedicated admin management portal:
-
-- **Shared Admin Auth Guard (`src/lib/adminGuard.ts`):** Centralized `requireAdmin(req: NextRequest)` checking authentication and `user.role === 'admin'`, returning 401/403 or typed `IUser`.
-- **Category API (`/api/categories` & `/api/categories/[id]`):**
-  - `GET /api/categories`: Public list of categories sorted by name.
-  - `POST /api/categories`: Admin-only category creation with auto-generated unique slug and duplicate rejection (400).
-  - `DELETE /api/categories/[id]`: Admin-only deletion with **Orphan Protection Guard** — blocks deletion if any courses reference the category and returns a clear descriptive message.
-- **Course API (`/api/courses`, `/api/courses/[id]`, `/api/admin/courses`):**
-  - `GET /api/courses`: Public course catalog with `?keyword=`, `?category=`, and `?level=` filtering. Automatically restricts results to `isPublished: true` for non-admins.
-  - `POST /api/courses`: Admin-only course creation defaulting to draft mode (`isPublished: false`) with auto-incrementing unique slug generation.
-  - `GET /api/courses/[id]`: Public detail endpoint. Returns 404 for unpublished courses when accessed by non-admins (preventing information disclosure).
-  - `PUT /api/courses/[id]`: Admin-only partial updates with validation and one-click publish toggle.
-  - `DELETE /api/courses/[id]`: Admin-only course deletion.
-  - `GET /api/admin/courses`: Admin-only repository returning all courses (both published and drafts) with category population.
-- **Public Frontend:**
-  - **Live Course Catalog (`src/app/page.tsx`):** Real-time search by keyword, category filter chips, difficulty selector, responsive course card grid, price formatting, and empty states.
-  - **Course Detail Page (`src/app/courses/[id]/page.tsx`):** Comprehensive course overview, curriculum placeholder ("Lessons coming in Part 3"), and visibly disabled enroll button ("Payments & enrollment coming in Part 4").
-- **Admin Portal (`src/app/admin/`):**
-  - `admin/layout.tsx`: Role guard redirecting non-admins/students away from `/admin` immediately, with dedicated sidebar navigation.
-  - `admin/page.tsx`: Management dashboard with KPI metrics (Total Courses, Published, Drafts, Categories) and recent courses table.
-  - `admin/categories/page.tsx`: Category management table, creation form, and deletion confirmation modal with backend error alerts.
-  - `admin/courses/page.tsx`: Course studio with creation/edit modal, category dropdown, price/level configuration, and instant Publish/Unpublish toggle.
-
----
-
-## 🎥 Part 3: Lessons & Video Streaming
-
-In **Part 3**, we built complete lesson CRUD, Vercel Blob video integration, curriculum rendering, and gated video player access:
-
-- **Vercel Blob Video Upload (`src/lib/videoUpload.ts`):**
-  - Robust file validation rejecting unsupported formats (supports `video/mp4`, `video/webm`, `video/quicktime`) and oversized files (>200MB).
-  - Clear error messaging with custom `VideoUploadError` and configuration validation (`BLOB_READ_WRITE_TOKEN`).
-  - Seamless HTTP Range request streaming supported natively by Vercel Blob URLs for instant seeking and scrubbable playback.
-- **RESTful Lesson API Routes:**
-  - `GET /api/courses/[id]/lessons`: Public course curriculum list sorted by order. **Gated streaming security**: omits/strips `videoUrl` for non-preview lessons unless requested by an admin.
-  - `POST /api/courses/[id]/lessons`: Admin-only multipart form handler uploading video to Vercel Blob and persisting the `Lesson` document.
-  - `GET /api/lessons/[id]`: Retrieve single lesson details with preview gating.
-  - `PUT /api/lessons/[id]`: Admin-only metadata updates (`title`, `order`, `isPreview`).
-  - `PUT /api/lessons/[id]/video`: Admin-only dedicated video replacement endpoint.
-  - `DELETE /api/lessons/[id]`: Admin-only lesson document deletion.
-- **Admin Curriculum & Video Studio (`src/app/admin/courses/[id]/lessons/page.tsx`):**
-  - Course header with total lesson counter and direct links.
-  - Multi-part video uploader with upload in-flight indicators and file validation.
-  - Interactive lesson list with order renumbering, inline `<video controls>` previews, metadata edit modal, video replacement modal, and deletion confirmation guard.
-  - Added "Manage Lessons" navigation button to the course repository table in `/admin/courses`.
-- **Public Curriculum & Gated Player:**
-  - **Course Detail Page (`src/app/courses/[id]/page.tsx`):** Replaced placeholder with live curriculum view displaying lesson order, titles, preview badges, and direct player links for preview lessons.
-  - **Interactive Learning Player (`src/app/learn/[courseId]/[lessonId]/page.tsx`):** Responsive classroom interface with HTML5 video player for free preview lessons / admins, and locked status placeholder ("This lesson unlocks after enrollment") for gated lessons. Includes course curriculum sidebar and prev/next lesson navigation.
-
----
-
-## 📸 Verification Screenshots
-
-### Part 1: Authentication & Foundation
-| User Registration (`/register`) | User Login (`/login`) |
-| :---: | :---: |
-| ![User Registration](docs/screenshots/01_register_page.png) | ![User Login](docs/screenshots/02_login_page.png) |
-| **Authenticated Dashboard (`/dashboard`)** | **Duplicate Account Guard** |
-| ![Authenticated Dashboard](docs/screenshots/03_dashboard_authenticated.png) | ![Duplicate Registration Error](docs/screenshots/04_duplicate_registration_error.png) |
-
-### Part 2: Course Catalog & Admin Management
-| Public Course Catalog (`/`) | Course Detail Page (`/courses/[id]`) |
-| :---: | :---: |
-| ![Course Catalog](docs/screenshots/05_course_catalog.png) | ![Course Detail](docs/screenshots/06_course_detail.png) |
-| **Admin Overview Dashboard (`/admin`)** | **Admin Categories Management (`/admin/categories`)** |
-| ![Admin Overview](docs/screenshots/07_admin_overview.png) | ![Admin Categories](docs/screenshots/08_admin_categories.png) |
-| **Admin Course Management (`/admin/courses`)** | **Category Deletion Guard (Error Banner)** |
-| ![Admin Courses](docs/screenshots/09_admin_courses.png) | ![Category Deletion Blocked](docs/screenshots/10_category_deletion_blocked.png) |
-| **Unpublished Course 404 Guard** | |
-| ![Unpublished Course 404](docs/screenshots/11_unpublished_course_404.png) | |
-
----
-
-## 🚀 Quick Start & Local Development
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/MaazzAlii/edupulse-lms-nextjs.git
-cd edupulse-lms-nextjs
-```
-
-### 2. Configure Environment Variables
-Create a `.env.local` file in the root directory:
-```env
-MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/edupulse_lms?retryWrites=true&w=majority
-JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRE=7d
-BLOB_READ_WRITE_TOKEN=your_vercel_blob_read_write_token_here
-```
-
-### 3. Install dependencies
-```bash
-npm install
-```
-
-### 4. Run development server
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### 5. Build for Production
-```bash
-npm run build
-npm run start
-```
-
----
-
-## 📖 Architecture & Notes
-For a comprehensive architectural breakdown and code structure, see **[LMS_Step_By_Step_Notes.md](./LMS_Step_By_Step_Notes.md)**.
-
-
---- FILE: lms-part1-foundation-spec.md ---
-# LMS Project — Part 1: Foundation
-
-**Goal:** Set up the Next.js project, database models, authentication (register/login/logout), protected routes, and a basic layout with role-aware navigation. This is the base every later part builds on top of.
-
----
-
-## 1. Project Setup
-
-Scaffold with the official CLI, pinned to **Next.js 15** (not 16 — the LMS course and later parts assume Next 15's App Router conventions):
-
-```bash
-npx create-next-app@latest lms-nextjs --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --use-npm --no-turbopack
-```
-
-After scaffolding, edit `package.json`:
-- Change `"next"` to `"^15.5.23"` (or latest 15.x)
-- Add dependencies: `mongoose@^8.5.2`, `bcryptjs@^2.4.3`, `jsonwebtoken@^9.0.2`
-- Add dev dependencies: `@types/bcryptjs@^2.4.6`, `@types/jsonwebtoken@^9.0.6`
-
-Then delete `node_modules` and `package-lock.json`, and run `npm install` again so the lockfile matches.
-
-Remove unused CLI boilerplate: `AGENTS.md`, `CLAUDE.md`, `public/file.svg`, `public/globe.svg`, `public/next.svg`, `public/vercel.svg`, `public/window.svg`.
-
-**Do not use `next/font/google`** (or any Google Fonts import) — use Tailwind's default system font stack instead. This avoids a network dependency at build time.
-
----
-
-## 2. Environment Variables
-
-Create `.env.example`:
-
-```env
-MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/lms?retryWrites=true&w=majority
-JWT_SECRET=replace_with_a_long_random_secret
-JWT_EXPIRE=7d
-```
-
-(Later parts will add `BLOB_READ_WRITE_TOKEN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_APP_URL` — don't add them yet.)
-
----
-
-## 3. Design Tokens
-
-In `src/app/globals.css`, replace the default `:root` and `@theme inline` blocks with these tokens (Tailwind v4 CSS-first theming — academic/education visual identity: deep plum primary + gold accent):
-
-```css
-@import "tailwindcss";
-
-:root {
-  --background: #faf8f6;
-  --foreground: #221b20;
-  --muted: #7a7078;
-  --border: #e8e1e4;
-  --surface: #ffffff;
-  --primary: #6b2d5c;
-  --primary-dark: #4f2144;
-  --primary-tint: #f3e8f0;
-  --gold: #c9972a;
-  --gold-tint: #faf1dd;
-  --green: #2e8b57;
-  --green-tint: #e6f4ec;
-  --red: #c0392b;
-  --red-tint: #fbe9e7;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-border: var(--border);
-  --color-surface: var(--surface);
-  --color-primary: var(--primary);
-  --color-primary-dark: var(--primary-dark);
-  --color-primary-tint: var(--primary-tint);
-  --color-gold: var(--gold);
-  --color-gold-tint: var(--gold-tint);
-  --color-green: var(--green);
-  --color-green-tint: var(--green-tint);
-  --color-red: var(--red);
-  --color-red-tint: var(--red-tint);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-serif: ui-serif, Georgia, "Times New Roman", serif;
-  --font-mono: ui-monospace, "SFMono-Regular", "IBM Plex Mono", Menlo, monospace;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-}
-```
-
----
-
-## 4. Folder Structure
-
-```
-src/
-├── app/
-│   ├── layout.tsx
-│   ├── page.tsx              # Home page
-│   ├── register/page.tsx
-│   ├── login/page.tsx
-│   ├── dashboard/page.tsx    # Protected placeholder page
-│   └── api/
-│       └── auth/
-│           ├── register/route.ts
-│           ├── login/route.ts
-│           ├── logout/route.ts
-│           └── me/route.ts
-├── components/
-│   └── Navbar.tsx
-├── context/
-│   └── AuthContext.tsx
-├── lib/
-│   ├── db.ts                 # MongoDB connection
-│   ├── jwt.ts                # JWT sign/verify
-│   ├── auth.ts                # Cookie-based auth helpers
-│   └── response.ts             # Shared API response shape
-└── models/
-    ├── User.ts
-    ├── Category.ts            # Empty schema now, used in Part 2
-    ├── Course.ts               # Empty schema now, used in Part 2
-    ├── Lesson.ts                # Empty schema now, used in Part 3
-    └── Enrollment.ts             # Empty schema now, used in Part 4
-```
-
-Build all 5 models now even though only `User` is used in Part 1 — this avoids rework when Part 2 onward references them.
-
----
-
-## 5. Database Models
-
-### `src/lib/db.ts` — MongoDB connection
-
-Use a cached-connection pattern (via `global`) so Next.js's dev-mode hot reload and serverless warm invocations don't create a new Mongoose connection every time. Throw a clear error if `MONGO_URI` is missing.
-
-### `src/models/User.ts`
-
-Fields: `name` (String, required), `email` (String, required, unique, lowercase), `password` (String, required, min 6 chars, `select: false`), `role` (enum `'student' | 'admin'`, default `'student'`), timestamps.
-
-- `pre('save')` hook: hash `password` with bcrypt (10 rounds) if modified.
-- Instance method `comparePassword(entered: string): Promise<boolean>` using `bcrypt.compare`.
-- Export pattern: `mongoose.models.User || mongoose.model('User', userSchema)` (guards against Next.js hot-reload redefining the model).
-
-### `src/models/Category.ts`
-
-Fields: `name` (String, required, unique), `slug` (String, required, unique, lowercase), timestamps. Same `mongoose.models.X ||` export guard.
-
-### `src/models/Course.ts`
-
-Fields: `title`, `slug` (unique), `description`, `category` (ObjectId ref `'Category'`), `instructor` (String), `level` (enum `'Beginner' | 'Intermediate' | 'Advanced'`), `price` (Number, min 0), `thumbnailUrl` (String), `isPublished` (Boolean, default false), timestamps.
-
-### `src/models/Lesson.ts`
-
-Fields: `course` (ObjectId ref `'Course'`), `title`, `order` (Number), `videoUrl` (String), `durationSeconds` (Number), `isPreview` (Boolean, default false — watchable without purchasing), timestamps. Index on `{ course: 1, order: 1 }`.
-
-### `src/models/Enrollment.ts`
-
-Fields: `user` (ObjectId ref `'User'`), `course` (ObjectId ref `'Course'`), `amount` (Number), `paymentStatus` (enum `'Pending' | 'Paid'`), `stripeSessionId`, `stripePaymentIntentId`, `completedLessons` (array of ObjectId ref `'Lesson'`). Timestamps mapped as `{ createdAt: 'enrolledAt', updatedAt: true }`. **Unique compound index** on `{ user: 1, course: 1 }` — a user can only have one enrollment per course.
-
----
-
-## 6. Auth Utilities
-
-### `src/lib/jwt.ts`
-
-`signToken({ id, role })` and `verifyToken(token)` using `jsonwebtoken`, reading `JWT_SECRET` and `JWT_EXPIRE` from env.
-
-### `src/lib/response.ts`
-
-Two helpers used by every API route for a consistent shape:
-- `apiError(message, status)` → `NextResponse.json({ success: false, message }, { status })`
-- `apiSuccess(data, status = 200)` → `NextResponse.json({ success: true, ...data }, { status })`
-
-### `src/lib/auth.ts`
-
-Cookie name constant: `AUTH_COOKIE = 'lms_token'`.
-
-Two helper functions, both reading the JWT from the cookie, verifying it, and loading the user from MongoDB:
-- `getAuthUserFromRequest(req: NextRequest)` — for use inside Route Handlers, reads `req.cookies.get(AUTH_COOKIE)`.
-- `getServerUser()` — for use inside Server Components, reads via `await cookies()` (Next.js 15's `cookies()` is async).
-
-Both return `null` (not a thrown error) if there's no valid session — callers decide whether that's an error.
-
----
-
-## 7. Auth API Routes
-
-All four routes go through `connectDB()` first, validate input, and return the shared `apiSuccess`/`apiError` shape.
-
-- **`POST /api/auth/register`** — body `{ name, email, password }`. Validate all three present, password ≥ 6 chars. Check email not already taken (400 if so). Create user, sign JWT with `{ id, role }`, set it as an **httpOnly cookie** (`secure` in production, `sameSite: 'lax'`, 7-day maxAge), return `201` with the user object (never the password).
-- **`POST /api/auth/login`** — body `{ email, password }`. Look up user with `.select('+password')` (since password has `select: false` on the schema), compare password, same cookie-setting pattern as register, return `200`.
-- **`POST /api/auth/logout`** — clears the cookie (`maxAge: 0`), returns success.
-- **`GET /api/auth/me`** — uses `getAuthUserFromRequest`, returns `401` if not authenticated, otherwise the user object.
-
----
-
-## 8. Frontend
-
-### `src/context/AuthContext.tsx`
-
-Client-side React context (`'use client'`). On mount, calls `GET /api/auth/me` to restore session state (sets `loading` false once resolved). Exposes `user`, `loading`, `isAuthenticated`, `isAdmin`, and `register`/`login`/`logout`/`refresh` functions that call the corresponding API routes and update local state. Throw if `useAuth()` is called outside the provider.
-
-### `src/components/Navbar.tsx`
-
-Client component. Shows: brand logo/link to `/`, a "Courses" nav link, and then conditionally:
-- While `loading`: nothing extra.
-- If logged in: "Admin" link (only if `isAdmin`), "My Learning" link, the user's name, and a "Sign out" button that calls `logout()` then redirects to `/`.
-- If logged out: a "Sign in" button linking to `/login`.
-
-Use `usePathname()` to highlight the active link.
-
-### `src/app/layout.tsx`
-
-Root layout. Wrap `children` in `<AuthProvider>`, render `<Navbar />` above `{children}`. Set metadata title/description for the LMS.
-
-### `src/app/page.tsx`
-
-Simple home page explaining what's built so far in Part 1 (auth working, protected routes, role-aware nav) — this is a placeholder; the real course catalog replaces it in Part 2.
-
-### `src/app/register/page.tsx` and `src/app/login/page.tsx`
-
-Client components with controlled form inputs, calling `useAuth().register(...)` / `.login(...)`, showing a validation/error banner on failure, redirecting to `/dashboard` on success.
-
-### `src/app/dashboard/page.tsx`
-
-Client component demonstrating the **protected route pattern**: on mount, if `!loading && !isAuthenticated`, redirect to `/login` via `router.replace('/login')`. While loading or unauthenticated, show a loading state instead of flashing protected content. Once authenticated, show the user's name/email/role as proof the session works.
-
----
-
-## 9. Verification Checklist (do this before pushing)
-
-1. `npm install` completes cleanly.
-2. `npm run build` succeeds with **zero errors**.
-3. `npm run lint` passes with **zero errors**.
-4. Manually test against a real MongoDB Atlas database (use `.env.example` as a template for a real `.env`):
-   - Register a new account → should land on `/dashboard` showing your name/email/role.
-   - Refresh the page → should stay logged in (session persists via cookie).
-   - Click "Sign out" → should return to logged-out state.
-   - Try to open `/dashboard` directly while logged out → should redirect to `/login`.
-   - Log back in with the same credentials → should succeed and land on `/dashboard`.
-   - Try registering with the same email again → should show a clear error, not crash.
-5. Take screenshots of: the register page, login page, dashboard (logged in), and the terminal output of a successful `npm run build`.
-
-## 10. GitHub
-
-- Repo name suggestion: `lms-nextjs-foundation` (or just `lms-nextjs` if you want one repo for the whole project across all 6 parts — recommended, since later parts extend this same codebase rather than starting fresh).
-- Public repo, empty (no auto-generated README/gitignore).
-- Commit files individually with descriptive messages.
-- Push to `origin main`.
-- Add the verification screenshots to `docs/screenshots/` and reference them in the README under a "Part 1: Foundation" heading.
-
-**Do not deploy to Vercel yet** — later parts add more environment variables (Blob storage, Stripe), so we'll deploy once more of the app exists. Local verification against a real MongoDB Atlas database is enough for this part.
-
-
---- FILE: lms-part1-cleanup-prompt.md ---
-# Part 1 Cleanup — Remove Out-of-Scope Files, Finish Verification
-
-The Part 1 build succeeded, but it included files well beyond Part 1's scope — likely merged in from the old `full_project_dump.md` reference project. Before we move to Part 2, clean this up so the codebase only contains what Part 1 actually specified.
-
-## 1. Delete these out-of-scope files/folders entirely
-
-These belong to later parts (2–5) and should not exist yet — they'll be built fresh against the real backend when we get there, not left over as fake-data mockups:
-
-- `src/app/admin/` (entire folder — analytics, courses, users, layout, page)
-- `src/app/courses/` (entire folder)
-- `src/app/learn/` (entire folder)
-- `src/app/my-courses/`
-- `src/components/admin/` (entire folder)
-- `src/components/checkout/` (entire folder)
-- `src/components/courses/` (entire folder)
-- `src/components/layout/` (entire folder — this duplicates `src/components/Navbar.tsx`)
-- `src/components/auth/AuthModal.tsx` (we're using dedicated `/login` and `/register` pages, not a modal)
-- `src/context/LMSContext.tsx`
-- `src/data/` (entire folder, including `mockCourses.ts`)
-- `src/types/index.ts` **only if** nothing from Part 1's actual files imports it — check first
-- `src/lib/utils.ts` **only if** nothing from Part 1's actual files imports it — check first
-- `tailwind.config.ts` — this project uses Tailwind v4's CSS-first `@theme inline` config in `globals.css`, not a JS config file. Having both can cause conflicts or confusion. Remove it unless something in `globals.css` explicitly requires it.
-
-## 2. After deleting, verify nothing is broken
-
-Run `npm run build` again. If it fails because some file you kept still imports one of the deleted files, either delete that importing file too (if it's also out-of-scope) or remove the broken import.
-
-Confirm the final route list from `npm run build` output matches **only**:
-```
-/
-/_not-found
-/api/auth/login
-/api/auth/logout
-/api/auth/me
-/api/auth/register
-/dashboard
-/login
-/register
-```
-
-If any other route still appears, something out-of-scope wasn't fully removed.
-
-## 3. Complete the manual verification (this was skipped)
-
-Using a real MongoDB Atlas connection string in `.env.local`:
-
-1. Run `npm run dev`.
-2. Register a new account → confirm it lands on `/dashboard` showing your name, email, and role.
-3. Refresh the page → confirm you're still logged in (session persists via the cookie).
-4. Click "Sign out" → confirm you return to a logged-out state.
-5. Try opening `/dashboard` directly in a new tab while logged out → confirm it redirects to `/login`.
-6. Log back in with the same credentials → confirm it succeeds and lands on `/dashboard`.
-7. Try registering again with the same email → confirm you get a clear error, not a crash.
-
-Take screenshots of: the register page, login page, dashboard while logged in, and the terminal output of a successful `npm run build`. Save them to `docs/screenshots/`.
-
-## 4. Push to GitHub (this was not done)
-
-- Create a new **public**, empty GitHub repo (no auto-generated README/gitignore).
-- Repo name: `lms-nextjs` (this will be the single repo for all 6 parts).
-- Description: "Full-stack Learning Management System built with Next.js 15, MongoDB, JWT auth, Vercel Blob video, and Stripe payments. Built incrementally in parts — see README for progress."
-- Initialize git, commit every file individually with descriptive messages, push to `origin main`.
-- Add the screenshots from step 3 to `docs/screenshots/`, reference them in a `README.md` under a "Part 1: Foundation" heading, commit, push again.
-
-## 5. Report back
-
-Once done, share:
-- The GitHub repo link
-- Confirmation the route list matches the expected 9 routes above
-- The screenshots (or a description of what they show)
-
-I'll verify the repo directly before we move to Part 2.
-
-
---- FILE: lms-part2-catalog-admin-spec.md ---
-# LMS Project — Part 2: Course Catalog & Admin CRUD
-
-**Builds on Part 1.** Do not modify anything in `src/models/`, `src/lib/`, `src/context/AuthContext.tsx`, or the `/api/auth/*` routes — they're done and verified. This part adds categories, courses, public browsing, and admin management on top of that foundation.
-
----
-
-## 1. Scope for this part
-
-- Admin-only CRUD for **Categories**
-- Admin-only CRUD for **Courses** (not lessons yet — that's Part 3)
-- Public course catalog: browse, search, filter by category
-- Public course detail page
-- An `isAdmin`-gated `/admin` section with a sidebar/nav distinct from the public site
-
-**Do not build yet** (later parts): lesson management, video upload, enrollment/payment, admin analytics, user management. If you're tempted to stub these out "for later," don't — an empty stub page that isn't wired to anything real just becomes clutter, same problem as last time.
-
----
-
-## 2. Shared Auth Guard for Admin API Routes
-
-Create `src/lib/adminGuard.ts`:
-
-```typescript
-export async function requireAdmin(req: NextRequest): Promise<IUser | NextResponse>
-```
-
-- Calls `getAuthUserFromRequest(req)`.
-- If no user → return `apiError('Not authenticated', 401)`.
-- If user role isn't `'admin'` → return `apiError('Admin access required', 403)`.
-- Otherwise → return the user.
-
-Callers do:
-```typescript
-const authResult = await requireAdmin(req);
-if (authResult instanceof NextResponse) return authResult;
-const admin = authResult; // typed as IUser from here
-```
-
-This avoids repeating the same auth-check boilerplate in every admin route.
-
----
-
-## 3. Category API Routes
-
-`src/app/api/categories/route.ts`:
-- `GET` — public, returns all categories, sorted by name.
-- `POST` — admin only (`requireAdmin`). Body `{ name }`. Auto-generate `slug` from `name` (lowercase, spaces→hyphens, strip non-alphanumeric). Return 400 if name empty or slug already exists.
-
-`src/app/api/categories/[id]/route.ts`:
-- `DELETE` — admin only. Return 400 if any Course still references this category (don't allow orphaning courses — require the admin to reassign or delete those courses first, and say so in the error message).
-
----
-
-## 4. Course API Routes
-
-**Important — route ordering.** In Part 1's sibling projects, static routes placed after dynamic `:id`/`[id]` routes got silently swallowed (Express matched `:id` against literal words like "new" or "mine"). Next.js route handlers use folder-based routing so this specific bug can't happen the same way, but keep the equivalent discipline: `/api/courses/mine` (if you add anything like it later) must be its own folder, not something that could collide with `/api/courses/[id]`.
-
-`src/app/api/courses/route.ts`:
-- `GET` — public. Query params: `?keyword=` (case-insensitive match on `title`), `?category=` (category ObjectId), `?level=`. **Only return courses where `isPublished: true`** for non-admin requests — an unpublished course should not appear in the public catalog. (Check the requester: if `getAuthUserFromRequest` resolves to an admin, include unpublished courses too; otherwise filter to `isPublished: true` only.)
-- `POST` — admin only. Body `{ title, description, category, instructor, level, price, thumbnailUrl }`. Auto-generate `slug` from `title`, ensure uniqueness (append `-2`, `-3` etc. if the slug already exists rather than erroring). Validate `category` references a real Category document (404 if not). New courses default `isPublished: false` — admin publishes explicitly.
-
-`src/app/api/courses/[id]/route.ts`:
-- `GET` — public detail. **If the course is unpublished and the requester isn't an admin, return 404** (not 403 — don't reveal that an unpublished course exists at all to non-admins).
-- `PUT` — admin only. Partial update, `runValidators` equivalent (Mongoose does this by default on `save()`; if using `findByIdAndUpdate`, pass `{ new: true, runValidators: true }`).
-- `DELETE` — admin only. For now (Lesson model isn't wired to lessons yet in the UI), just delete the course document. Part 3 will add "also delete this course's lessons" when lessons actually exist.
-
-`src/app/api/admin/courses/route.ts`:
-- `GET` — admin only. Returns ALL courses (published and unpublished), for the admin course-management table.
-
----
-
-## 5. Frontend — Public Pages
-
-### `src/app/page.tsx` (replace the Part 1 placeholder)
-
-Now a real course catalog homepage:
-- Search bar (`?keyword=`) and category filter dropdown, both updating the query via `useSearchParams`/`router.push`.
-- Grid of course cards: thumbnail, title, category name, level badge, price, instructor.
-- Empty state if no courses match.
-- Loading state while fetching.
-
-### `src/app/courses/[id]/page.tsx`
-
-Course detail page:
-- Full title, description, instructor, level, price, category.
-- A "Curriculum" section — for now, since lessons don't exist yet, show "Lessons coming in Part 3" as a placeholder text, not a fake lesson list.
-- An "Enroll" button that's **visibly disabled** with a tooltip/caption "Payments coming in Part 4" — don't fake a working enroll flow.
-
-Keep the Part 1 home page's "What's built so far" framing but move it to this catalog page or drop it — your call, just don't leave two competing homepages.
-
----
-
-## 6. Frontend — Admin Section
-
-### `src/app/admin/layout.tsx`
-
-- On mount, check `useAuth()` — if `!loading && !isAdmin`, redirect to `/` (non-admins should never see admin UI, not even a flash of it).
-- Simple sidebar: links to `/admin` (overview — can just list courses for now), `/admin/categories`, `/admin/courses`.
-
-### `src/app/admin/categories/page.tsx`
-
-- Table of existing categories with a delete button per row (with confirm dialog).
-- A form to add a new category (name only, slug auto-generated server-side).
-- Show the backend's error message plainly if delete fails because courses reference it.
-
-### `src/app/admin/courses/page.tsx`
-
-- Table of ALL courses (published + unpublished), with a visible "Published"/"Draft" badge per row.
-- A form (inline or modal — your choice, but if a modal, don't reintroduce the old `AuthModal.tsx` pattern, this is a new, separate component) to create a course: title, description, category (dropdown from `GET /api/categories`), instructor, level, price, thumbnail URL.
-- Edit and delete actions per row.
-- A "Publish"/"Unpublish" toggle button per row (calls `PUT /api/courses/:id` with `{ isPublished: true/false }`).
-
----
-
-## 7. Verification Checklist
-
-1. `npm run build` — zero errors. Confirm the route list now includes `/courses/[id]`, `/admin`, `/admin/categories`, `/admin/courses`, and the new API routes, with nothing extra.
-2. `npm run lint` — zero errors.
-3. Manual test against real MongoDB (screenshot each step):
-   - Log in as the admin test account (promote a user to `role: 'admin'` directly in MongoDB Atlas if you haven't already).
-   - Create 2–3 categories.
-   - Create 3+ courses across different categories, leave one unpublished.
-   - Confirm the **public catalog only shows published courses** — log out (or use an incognito window) and verify the unpublished one is genuinely absent, and that visiting its detail page URL directly returns a 404-style "not found" rather than showing the content.
-   - Search and category-filter on the public catalog, confirm results update correctly.
-   - Toggle a course to published, confirm it now appears publicly.
-   - Try deleting a category that still has courses attached — confirm you get a clear error, not a silent failure or a crash.
-   - As a non-admin (regular student) logged-in user, try visiting `/admin` directly — confirm you're redirected away, not shown any admin content.
-4. Screenshot: catalog page, course detail page, admin categories page, admin courses page (with both published/draft badges visible), and the blocked-category-delete error.
-
-## 8. Git & Push
-
-- Same repo (`edupulse-lms-nextjs`), same pattern: commit logically grouped changes with descriptive messages (e.g. `feat(models/api): category CRUD routes`, `feat(admin): course management UI`, `feat(catalog): public course browsing and detail page`), push to `origin main`.
-- Update `README.md` with a "Part 2: Course Catalog & Admin CRUD" section and the new screenshots in `docs/screenshots/`.
-
-Report back with the repo state once done and I'll verify directly before writing Part 3.
-
-
---- FILE: lms-part3-lessons-video-spec.md ---
-# LMS Project — Part 3: Lessons & Video
-
-**Builds on Parts 1 and 2.** Do not modify anything in `src/models/`, `src/lib/db.ts`, `src/lib/auth.ts`, `src/lib/jwt.ts`, `src/lib/response.ts`, `src/lib/adminGuard.ts`, `AuthContext.tsx`, or any `/api/auth/*` or `/api/categories/*` route — they're done and verified. This part adds lesson CRUD (nested under courses) and real video upload/streaming via Vercel Blob.
-
----
-
-## 1. Scope for this part
-
-- Admin-only CRUD for **Lessons**, scoped to a specific course
-- Real video file upload (not a URL paste field) via Vercel Blob, from the admin lesson form
-- A course "curriculum" view on the public course detail page, replacing the Part 2 "Lessons coming in Part 3" placeholder
-- A basic lesson video player page — **but gated**: only the first lesson marked `isPreview: true` should actually be watchable by non-enrolled visitors; everything else should show a locked state with "Enroll to unlock" (since enrollment/payment isn't built until Part 4, this locked state is honest UI, not a broken promise)
-
-**Do not build yet:** enrollment, payment, progress tracking (`completedLessons` on the Enrollment model exists in the schema but isn't wired to anything until Part 4), admin analytics, user management.
-
----
-
-## 2. Vercel Blob Setup (do this first, before writing code)
-
-1. In the Vercel dashboard, open this project → **Storage** tab → **Create Database** → **Blob**. Free tier is enough.
-2. Vercel auto-generates `BLOB_READ_WRITE_TOKEN` and offers to add it to your project's environment variables — accept that.
-3. For **local development**, pull that same env var down: `vercel env pull .env.local` (requires the Vercel CLI logged into this project — `npx vercel login` then `npx vercel link` if not already linked). Alternatively, copy the token value from the Vercel dashboard's Environment Variables page directly into `.env.local` by hand.
-4. Add `BLOB_READ_WRITE_TOKEN=` to `.env.example` (no real value, just the key name) so the pattern is documented.
-
-If this token isn't available, video upload cannot be tested locally — flag that clearly rather than silently skipping the verification step.
-
----
-
-## 3. Video Upload Utility
-
-`src/lib/videoUpload.ts`:
-
-```typescript
-export class VideoUploadError extends Error {
-  statusCode: number;
-}
-
-export async function uploadVideo(file: File): Promise<{ url: string; size: number }>
-```
-
-- Validate `file.type` is one of `video/mp4`, `video/webm`, `video/quicktime` — reject anything else with a clear message.
-- Validate `file.size` ≤ 200MB — reject oversized files with a message stating the actual size.
-- If `BLOB_READ_WRITE_TOKEN` isn't set, throw a clear `VideoUploadError` with statusCode 500 explaining Blob storage isn't configured (don't let this fail with a cryptic "undefined" error).
-- Use `put()` from `@vercel/blob` with `access: 'public'` and `addRandomSuffix: true`, filename prefixed `lessons/${Date.now()}-${sanitized original name}`.
-- Return the resulting public URL.
-
-**Why this matters for "streaming"**: Vercel Blob URLs support HTTP range requests, which is what lets a plain `<video>` tag seek/scrub without downloading the whole file first — that's the actual streaming behavior, not something we need to build ourselves.
-
----
-
-## 4. Lesson API Routes
-
-`src/app/api/courses/[id]/lessons/route.ts`:
-- `GET` — public, returns all lessons for this course, sorted by `order`. **Do not include `videoUrl` in the response for lessons where `isPreview: false`** unless the requester is an admin — non-enrolled visitors should see the lesson title/order/duration in the curriculum list, but not get a working video URL for locked lessons. (Enrollment-based unlocking comes in Part 4; for now, "preview lessons only" is the unlock rule.)
-- `POST` — admin only. Expects `multipart/form-data` with fields: `title`, `order`, `isPreview`, and a `video` file field. Calls `uploadVideo()`, then creates the Lesson document with the resulting `videoUrl`. Validate the `course` param references a real, existing course (404 if not).
-
-`src/app/api/lessons/[id]/route.ts`:
-- `PUT` — admin only. Supports updating `title`, `order`, `isPreview` via JSON body (no video re-upload in this route — see below).
-- `DELETE` — admin only. Deletes the lesson document. (Leave the actual video file in Blob storage — deleting blobs is an optional nice-to-have, not required; don't spend time on it unless the rest of this part is done early.)
-
-`src/app/api/lessons/[id]/video/route.ts`:
-- `PUT` — admin only, separate endpoint specifically for replacing a lesson's video (multipart form with just a `video` field). Keeps the "replace video" action distinct from "edit metadata" so the admin UI can offer them as separate, clear actions.
-
-**Route ordering reminder**: `src/app/api/courses/[id]/lessons/route.ts` and `src/app/api/lessons/[id]/route.ts` are different path shapes (`courses/[id]/lessons` vs `lessons/[id]`), so there's no collision risk here — just keep this pattern in mind for anything added later.
-
----
-
-## 5. Frontend — Admin Lesson Management
-
-### `src/app/admin/courses/[id]/lessons/page.tsx`
-
-A dedicated page (linked from the admin courses table — add a "Manage Lessons" button/link per course row in `src/app/admin/courses/page.tsx`) for one course's curriculum:
-
-- List of existing lessons in order, showing title, order, duration (if known), preview badge, and a working `<video controls>` preview player for each (using the real `videoUrl`).
-- A form to add a new lesson: title, order (number), preview checkbox, and a native `<input type="file" accept="video/mp4,video/webm,video/quicktime">`.
-- Show real upload progress feedback (at minimum a "Uploading…" state while the request is in flight — full percentage progress is a nice-to-have, not required, since the underlying `fetch`/`put()` call doesn't expose granular progress without extra plumbing).
-- Edit (title/order/preview toggle) and delete actions per lesson.
-- A "Replace video" action per lesson, separate from metadata edit.
-
----
-
-## 6. Frontend — Public Curriculum & Player
-
-### `src/app/courses/[id]/page.tsx` (update from Part 2)
-
-Replace the "Lessons coming in Part 3" placeholder with a real curriculum list: lesson titles in order, with a lock icon on non-preview lessons and a play icon on preview lessons. Clicking a preview lesson navigates to the player; clicking a locked lesson does nothing (or shows a small "Enroll to unlock" tooltip — still don't build a working enroll flow yet).
-
-### `src/app/learn/[courseId]/[lessonId]/page.tsx`
-
-A basic lesson player page:
-- If the lesson is a preview lesson (or the requester is an admin), show a real `<video controls className="w-full">` with the lesson's `videoUrl`, playable and scrubbable.
-- If the lesson is NOT a preview lesson and the requester isn't an admin, show a locked state: no video element at all (don't render a `<video>` tag with an empty/placeholder src — that's confusing UI), just a clear message "This lesson unlocks after enrollment (Part 4)" with a disabled-looking placeholder box.
-- Simple prev/next lesson navigation within the same course's lesson list, respecting the same lock rule on next/prev targets.
-
----
-
-## 7. Verification Checklist
-
-1. `npm run build` — zero errors. Confirm new routes appear: `/courses/[id]/lessons`, `/admin/courses/[id]/lessons`, `/learn/[courseId]/[lessonId]`, and the new lesson API routes.
-2. `npm run lint` — zero errors.
-3. Manual test against real MongoDB + real Vercel Blob (screenshot each step):
-   - As admin, open a published course's "Manage Lessons" page.
-   - Upload a real short video file (a few seconds, doesn't need to be long) as Lesson 1, mark it `isPreview: true`.
-   - Upload a second video as Lesson 2, leave `isPreview: false`.
-   - Confirm both appear in the admin lesson list with working inline preview players.
-   - Log out (or incognito), visit the course's public detail page — confirm the curriculum shows both lesson titles, with Lesson 1 unlocked/playable and Lesson 2 showing a lock state.
-   - Click into Lesson 1's player page — confirm the video actually plays and you can scrub/seek within it (proving streaming, not just playback of a fully-loaded blob).
-   - Try navigating directly to Lesson 2's player URL while logged out — confirm you see the locked state, not the video.
-   - As admin, confirm you CAN view Lesson 2's video (admins bypass the lock).
-   - Try uploading a non-video file (e.g. a `.txt` renamed to `.mp4`, or just try a `.pdf`) — confirm you get a clear validation error, not a crash or a silently broken lesson.
-4. Screenshot: admin lesson upload form, admin lesson list with preview players, public curriculum showing locked/unlocked states, the playing video with visible scrub bar, and the locked-lesson message.
-
-## 8. Git & Push
-
-Same repo, same pattern. Suggested commits: `feat(video): Vercel Blob upload utility`, `feat(api): lesson CRUD and video upload routes`, `feat(admin): lesson management UI with video upload`, `feat(learn): public curriculum and gated video player`. Update `README.md` with a "Part 3: Lessons & Video" section and new screenshots.
-
-Report back with the repo state once done and I'll verify directly before writing Part 4 (Payments & Enrollment).
-
-
---- FILE: LMS_Step_By_Step_Notes.md ---
-# 🎓 Full MERN Stack LMS (Learning Management System) - Step-by-Step Notes
-> **Video Source:** [Becodemy - All Functional MERN Stack LMS Series with Next 13 & TypeScript (Part 1)](https://www.youtube.com/watch?v=kf6yyxMck8Y)  
-> **Topic:** Complete Industrial-Level LMS Backend Architecture (Node.js, Express, TypeScript, MongoDB, Redis, Cloudinary)
-
----
-
-## 📌 Table of Contents
-1. [Project Overview & Architecture Plan](#1-project-overview--architecture-plan)
-2. [Tech Stack Explanation (Why We Use What)](#2-tech-stack-explanation-why-we-use-what)
-3. [Step 1: Project & TypeScript Server Setup](#3-step-1-project--typescript-server-setup)
-4. [Step 2: Database & Cloud Services Connections](#4-step-2-database--cloud-services-connections)
-5. [Step 3: Robust Error Handling Architecture](#5-step-3-robust-error-handling-architecture)
-6. [Step 4: User Model & Secure Authentication System](#6-step-4-user-model--secure-authentication-system)
-7. [Step 5: Authentication & Role Authorization Middlewares](#7-step-5-authentication--role-authorization-middlewares)
-8. [Step 6: User Profile Management & Avatar Upload](#8-step-6-user-profile-management--avatar-upload)
-9. [Step 7: Course Management System (CRUD, Q&A, Reviews)](#9-step-7-course-management-system-crud-qa-reviews)
-10. [Step 8: Orders, Payments & Automated Cron Notifications](#10-step-8-orders-payments--automated-cron-notifications)
-11. [Step 9: Admin Dashboard & Analytics Engine](#11-step-9-admin-dashboard--analytics-engine)
-12. [Step 10: Dynamic Layout Management (Hero, FAQ, Categories)](#12-step-10-dynamic-layout-management-hero-faq-categories)
-13. [Step 11: Advanced Redis Caching & Cache Invalidation](#13-step-11-advanced-redis-caching--cache-invalidation)
-14. [Quick Reference API Cheat Sheet](#14-quick-reference-api-cheat-sheet)
-
----
-
-## 1. Project Overview & Architecture Plan
-*(Timestamp: 00:00:00 - 00:37:34)*
-
-### 🎯 What is this LMS?
-An industrial-grade online education platform (like Udemy / Coursera) containing:
-- **Student Features:** Browse courses, view previews, purchase courses, watch video lessons, ask questions in video timestamps, write reviews, and receive email updates.
-- **Admin Features:** Upload video lessons, structure modules, manage pricing, view financial & user growth analytics, handle user roles, customize homepage hero banners/FAQs/categories.
-- **Performance & Security:** High-speed in-memory session and cache storage with Redis, JWT authentication with silent refresh tokens, and Cloudinary media processing.
-
-### 📐 Backend Folder Architecture
-```text
-server/
-├── @types/             # Custom TypeScript definitions
-├── controllers/        # Business logic for endpoints (user, course, order, etc.)
-├── mails/              # EJS email templates (activation, question reply, order confirmation)
-├── middleware/         # Auth guards, error handlers, role validators
-├── models/             # Mongoose database schemas (User, Course, Order, Notification, Layout)
-├── routes/             # Express API routes
-├── services/           # Reusable database and cache services
-├── utils/              # Redis client, DB connection, JWT helpers, email sender, error classes
-├── app.ts              # Express app configuration & global middleware
-├── server.ts           # Server initialization & database bootstrap
-├── tsconfig.json       # TypeScript compiler settings
-└── package.json        # Dependencies & start scripts
-```
-
----
-
-## 2. Tech Stack Explanation (Why We Use What)
-*(Timestamp: 00:37:34 - 00:53:09)*
-
-| Technology | Why It's Used | In Simple Words |
-| :--- | :--- | :--- |
-| **TypeScript** | Static typing, interface checking, IntelliSense | Catches code errors before running the application |
-| **Node.js & Express** | Fast, scalable, non-blocking asynchronous server | The engine that handles API requests and responses |
-| **MongoDB & Mongoose** | Flexible JSON-like document database | Stores users, courses, orders, and site data |
-| **Redis** | Super-fast in-memory key-value database | Stores user sessions & caches course data for speed |
-| **Cloudinary** | Cloud image and video management CDN | Stores user profile pictures and course thumbnails |
-| **JWT (JSON Web Tokens)** | Stateless token-based user verification | Securely tracks logged-in users with Access & Refresh tokens |
-| **Nodemailer + EJS** | Email sending with customizable HTML templates | Sends OTP codes and notification emails to users |
-| **Node-Cron** | Task scheduler for background routines | Automatically deletes old read notifications |
-
----
-
-## 3. Step 1: Project & TypeScript Server Setup
-*(Timestamp: 00:53:09 - 01:04:21)*
-
-### 1. Initialize Node project
-```bash
-npm init -y
-```
-
-### 2. Install Dependencies
-```bash
-# Core dependencies
-npm i express dotenv mongoose ioredis jsonwebtoken bcryptjs cors cookie-parser cloudinary nodemailer ejs node-cron
-
-# Development dependencies (TypeScript & Type Definitions)
-npm i -D typescript ts-node-dev @types/node @types/express @types/cors @types/cookie-parser @types/jsonwebtoken @types/bcryptjs @types/nodemailer @types/ejs @types/node-cron
-```
-
-### 3. Initialize TypeScript Configuration (`tsconfig.json`)
-```bash
-npx tsc --init
-```
-Key settings to enable inside `tsconfig.json`:
-- `"target": "es2020"`
-- `"module": "commonjs"`
-- `"rootDir": "./"`
-- `"outDir": "./dist"`
-- `"strict": true`
-- `"esModuleInterop": true`
-
-### 4. Create `app.ts` (Express Configuration)
-```typescript
-import express, { Request, Response, NextFunction } from "express";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
-import { ErrorMiddleware } from "./middleware/error";
-
-dotenv.config();
-export const app = express();
-
-// 1. Body parser with limits for base64 / Cloudinary uploads
-app.use(express.json({ limit: "50mb" }));
-
-// 2. Cookie parser for reading tokens
-app.use(cookieParser());
-
-// 3. CORS configuration for frontend connection
-app.use(
-  cors({
-    origin: process.env.ORIGIN || "http://localhost:3000",
-    credentials: true,
-  })
-);
-
-// 4. Testing route
-app.get("/test", (req: Request, res: Response, next: NextFunction) => {
-  res.status(200).json({ success: true, message: "API is working properly" });
-});
-
-// 5. Global Error Handling Middleware (Always at the bottom)
-app.use(ErrorMiddleware);
-```
-
-### 5. Create `server.ts` (Server Launcher)
-```typescript
-import { app } from "./app";
-import connectDB from "./utils/db";
-import { v2 as cloudinary } from "cloudinary";
-import dotenv from "dotenv";
-
-dotenv.config();
-
-// Cloudinary config
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.CLOUD_API_KEY,
-  api_secret: process.env.CLOUD_SECRET_KEY,
-});
-
-// Start Server
-const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server connected on port ${PORT}`);
-  connectDB();
-});
-```
-
----
-
-## 4. Step 2: Database & Cloud Services Connections
-*(Timestamp: 01:04:21 - 01:26:03)*
-
-### 1. MongoDB Connection (`utils/db.ts`)
-```typescript
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-dotenv.config();
-
-const dbUrl: string = process.env.DB_URI || "";
-
-const connectDB = async () => {
-  try {
-    const data = await mongoose.connect(dbUrl);
-    console.log(`🍃 Database connected with ${data.connection.host}`);
-  } catch (error: any) {
-    console.error("❌ MongoDB connection error:", error.message);
-    setTimeout(connectDB, 5000); // Retry connection after 5 seconds
-  }
-};
-
-export default connectDB;
-```
-
-### 2. Redis Connection (`utils/redis.ts`)
-Redis acts as a high-speed cache and stores user sessions.
-```typescript
-import { Redis } from "ioredis";
-import dotenv from "dotenv";
-dotenv.config();
-
-const redisClient = () => {
-  if (process.env.REDIS_URL) {
-    console.log("⚡ Redis connected successfully");
-    return process.env.REDIS_URL;
-  }
-  throw new Error("Redis connection failed: REDIS_URL missing");
-};
-
-export const redis = new Redis(redisClient());
-```
-
----
-
-## 5. Step 3: Robust Error Handling Architecture
-*(Timestamp: 01:26:03 - 01:43:22)*
-
-Instead of using repetitive `try-catch` blocks everywhere with messy response formats, we use:
-1. **`ErrorHandler` Class:** Custom class inheriting from JavaScript's built-in `Error`.
-2. **`CatchAsyncError` Wrapper:** Automatically catches unhandled promise rejections.
-3. **`ErrorMiddleware`:** Centralized error interceptor handling MongoDB & JWT errors cleanly.
-
-### Custom Error Class (`utils/ErrorHandler.ts`)
-```typescript
-class ErrorHandler extends Error {
-  statusCode: number;
-
-  constructor(message: string, statusCode: number) {
-    super(message);
-    this.statusCode = statusCode;
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
-
-export default ErrorHandler;
-```
-
-### Async Error Wrapper (`middleware/catchAsyncErrors.ts`)
-```typescript
-import { Request, Response, NextFunction } from "express";
-
-export const CatchAsyncError =
-  (theFunc: any) => (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(theFunc(req, res, next)).catch(next);
-  };
-```
-
-### Central Error Middleware (`middleware/error.ts`)
-```typescript
-import { Request, Response, NextFunction } from "express";
-import ErrorHandler from "../utils/ErrorHandler";
-
-export const ErrorMiddleware = (
-  err: any,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  err.statusCode = err.statusCode || 500;
-  err.message = err.message || "Internal Server Error";
-
-  // Wrong MongoDB ObjectId Error
-  if (err.name === "CastError") {
-    const message = `Resource not found. Invalid: ${err.path}`;
-    err = new ErrorHandler(message, 400);
-  }
-
-  // Duplicate Key Error (e.g. email already exists)
-  if (err.code === 11000) {
-    const message = `Duplicate ${Object.keys(err.keyValue)} entered`;
-    err = new ErrorHandler(message, 400);
-  }
-
-  // Wrong JWT Error
-  if (err.name === "JsonWebTokenError") {
-    const message = "Json Web Token is invalid, try again";
-    err = new ErrorHandler(message, 400);
-  }
-
-  // JWT Token Expired
-  if (err.name === "TokenExpiredError") {
-    const message = "Json Web Token is expired, try again";
-    err = new ErrorHandler(message, 400);
-  }
-
-  res.status(err.statusCode).json({
-    success: false,
-    message: err.message,
-  });
-};
-```
-
----
-
-## 6. Step 4: User Model & Secure Authentication System
-*(Timestamp: 01:43:22 - 03:12:02)*
-
-### How Authentication Works:
-1. **Register:** User enters Name, Email, Password. Server generates a 4-digit OTP, creates an Activation Token (signed JWT containing user info + OTP), and emails the OTP using an EJS template.
-2. **Activate:** User inputs the 4-digit code. Server verifies the code against the token and creates the user in MongoDB.
-3. **Login:** Server verifies email & password (via bcrypt), generates an **Access Token** (short-lived, e.g. 5m) and a **Refresh Token** (long-lived, e.g. 3 days), caches user data in **Redis**, and stores tokens in **HTTP-only secure cookies**.
-
-### User Model (`models/user.model.ts`)
-```typescript
-import mongoose, { Document, Model, Schema } from "mongoose";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-dotenv.config();
-
-const emailRegexPattern: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export interface IUser extends Document {
-  name: string;
-  email: string;
-  password?: string;
-  avatar: {
-    public_id: string;
-    url: string;
-  };
-  role: string;
-  isVerified: boolean;
-  courses: Array<{ courseId: string }>;
-  comparePassword: (enteredPassword: string) => Promise<boolean>;
-  SignAccessToken: () => string;
-  SignRefreshToken: () => string;
-}
-
-const userSchema: Schema<IUser> = new mongoose.Schema(
-  {
-    name: { type: String, required: [true, "Please enter your name"] },
-    email: {
-      type: String,
-      required: [true, "Please enter your email"],
-      validate: {
-        validator: (value: string) => emailRegexPattern.test(value),
-        message: "Please enter a valid email",
-      },
-      unique: true,
-    },
-    password: {
-      type: String,
-      minlength: [6, "Password must be at least 6 characters"],
-      select: false, // Do not return password by default in queries
-    },
-    avatar: {
-      public_id: String,
-      url: String,
-    },
-    role: { type: String, default: "user" },
-    isVerified: { type: Boolean, default: false },
-    courses: [{ courseId: String }],
-  },
-  { timestamps: true }
-);
-
-// Hash password before saving
-userSchema.pre<IUser>("save", async function (next) {
-  if (!this.isModified("password")) return next();
-  this.password = await bcrypt.hash(this.password!, 10);
-  next();
-});
-
-// Compare password method
-userSchema.methods.comparePassword = async function (enteredPassword: string) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
-
-// Sign Access Token
-userSchema.methods.SignAccessToken = function () {
-  return jwt.sign({ id: this._id }, process.env.ACCESS_TOKEN || "", {
-    expiresIn: "5m",
-  });
-};
-
-// Sign Refresh Token
-userSchema.methods.SignRefreshToken = function () {
-  return jwt.sign({ id: this._id }, process.env.REFRESH_TOKEN || "", {
-    expiresIn: "3d",
-  });
-};
-
-const userModel: Model<IUser> = mongoose.model("User", userSchema);
-export default userModel;
-```
-
-### JWT Token Helper & Redis Session Storage (`utils/jwt.ts`)
-```typescript
-import { Response } from "express";
-import { IUser } from "../models/user.model";
-import { redis } from "./redis";
-
-interface ITokenOptions {
-  expires: Date;
-  maxAge: number;
-  httpOnly: boolean;
-  sameSite: "lax" | "strict" | "none" | undefined;
-  secure?: boolean;
-}
-
-// Token cookie options
-export const accessTokenOptions: ITokenOptions = {
-  expires: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
-  maxAge: 5 * 60 * 1000,
-  httpOnly: true,
-  sameSite: "lax",
-};
-
-export const refreshTokenOptions: ITokenOptions = {
-  expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
-  maxAge: 3 * 24 * 60 * 60 * 1000,
-  httpOnly: true,
-  sameSite: "lax",
-};
-
-export const sendToken = (user: IUser, statusCode: number, res: Response) => {
-  const accessToken = user.SignAccessToken();
-  const refreshToken = user.SignRefreshToken();
-
-  // Save session to Redis
-  redis.set(user._id.toString(), JSON.stringify(user));
-
-  if (process.env.NODE_ENV === "production") {
-    accessTokenOptions.secure = true;
-    refreshTokenOptions.secure = true;
-  }
-
-  res.cookie("access_token", accessToken, accessTokenOptions);
-  res.cookie("refresh_token", refreshToken, refreshTokenOptions);
-
-  res.status(statusCode).json({
-    success: true,
-    user,
-    accessToken,
-  });
-};
-```
-
----
-
-## 7. Step 5: Authentication & Role Authorization Middlewares
-*(Timestamp: 03:12:02 - 03:23:34)*
-
-### Middleware Guards (`middleware/auth.ts`)
-1. **`isAuthenticated`:** Reads `access_token` cookie, decodes user ID, pulls session from Redis, and sets `req.user`.
-2. **`authorizeRoles`:** Protects administrative endpoints from regular users.
-
-```typescript
-import { Request, Response, NextFunction } from "express";
-import { CatchAsyncError } from "./catchAsyncErrors";
-import ErrorHandler from "../utils/ErrorHandler";
-import jwt, { JwtPayload } from "jsonwebtoken";
-import { redis } from "../utils/redis";
-
-// Check if user is logged in
-export const isAuthenticated = CatchAsyncError(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const access_token = req.cookies.access_token as string;
-
-    if (!access_token) {
-      return next(new ErrorHandler("Please login to access this resource", 400));
-    }
-
-    const decoded = jwt.verify(
-      access_token,
-      process.env.ACCESS_TOKEN as string
-    ) as JwtPayload;
-
-    if (!decoded) {
-      return next(new ErrorHandler("Access token is invalid", 400));
-    }
-
-    // Retrieve active user from Redis session
-    const user = await redis.get(decoded.id);
-
-    if (!user) {
-      return next(new ErrorHandler("User session expired, please login again", 400));
-    }
-
-    req.user = JSON.parse(user);
-    next();
-  }
-);
-
-// Role Authorization Middleware (e.g. admin only)
-export const authorizeRoles = (...roles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!roles.includes(req.user?.role || "")) {
-      return next(
-        new ErrorHandler(
-          `Role (${req.user?.role}) is not allowed to access this resource`,
-          403
-        )
-      );
-    }
-    next();
-  };
-};
-```
-
----
-
-## 8. Step 6: User Profile Management & Avatar Upload
-*(Timestamp: 03:49:16 - 04:19:55)*
-
-Key user profile functionalities:
-1. **Update User Info:** Allows modifying user name and email.
-2. **Update Password:** Checks `oldPassword` using `comparePassword`, and assigns `newPassword`.
-3. **Update Avatar with Cloudinary:**
-   - Deletes the previous image from Cloudinary using `public_id`.
-   - Uploads new base64 image to `"avatars"` folder.
-   - Updates user record in MongoDB and synchronizes cache in Redis.
-
-```typescript
-// Updating Avatar Controller Snippet
-export const updateProfilePicture = CatchAsyncError(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const { avatar } = req.body;
-    const userId = req.user?._id;
-    const user = await userModel.findById(userId);
-
-    if (avatar && user) {
-      // If user already has an avatar on Cloudinary, delete old one
-      if (user?.avatar?.public_id) {
-        await cloudinary.v2.uploader.destroy(user.avatar.public_id);
-      }
-      const myCloud = await cloudinary.v2.uploader.upload(avatar, {
-        folder: "avatars",
-        width: 150,
-      });
-
-      user.avatar = {
-        public_id: myCloud.public_id,
-        url: myCloud.secure_url,
-      };
-
-      await user.save();
-      await redis.set(userId, JSON.stringify(user));
-
-      res.status(200).json({ success: true, user });
-    }
-  }
-);
-```
-
----
-
-## 9. Step 7: Course Management System (CRUD, Q&A, Reviews)
-*(Timestamp: 04:19:55 - 06:14:48)*
-
-### Course Schema Architecture (`models/course.model.ts`)
-A course contains:
-- Basic info: `name`, `description`, `price`, `estimatedPrice`, `thumbnail`, `tags`, `level`, `demoUrl`.
-- Benefits & Prerequisites list.
-- **`courseData` (Sections/Episodes):** Title, description, `videoUrl`, `videoLength`, Q&A section.
-- **Reviews & Ratings:** User comments with star ratings and instructor replies.
-
-```typescript
-interface IComment extends Document {
-  user: IUser;
-  question: string;
-  questionReplies?: IComment[];
-}
-
-interface IReview extends Document {
-  user: IUser;
-  rating: number;
-  comment: string;
-  commentReplies?: IComment[];
-}
-
-interface ICourseData extends Document {
-  title: string;
-  description: string;
-  videoUrl: string;
-  videoSection: string;
-  videoLength: number;
-  videoPlayer: string;
-  links: Array<{ title: string; url: string }>;
-  suggestion: string;
-  questions: IComment[];
-}
-```
-
-### Key Course Operations:
-- **Public Course View (`getSingleCourse` & `getAllCourses`):** Returns course data *without* private video URLs (for unpurchased visitors). Data is cached in Redis for fast load times.
-- **Purchased Course View (`getCourseByUser`):** Verifies that the logged-in user has purchased the course (by checking `user.courses`) and provides full video streaming URLs and course content.
-- **Add Question & Reply in Video:** Students can post questions under a specific video section. Instructors receive an automated email notification with link and details when a question is asked.
-- **Add Review & Rating:** Enrolled students can rate the course (1–5 stars) and write feedback. Calculates the average rating dynamically.
-
----
-
-## 10. Step 8: Orders, Payments & Automated Cron Notifications
-*(Timestamp: 06:14:48 - 07:14:23)*
-
-### 1. Order Creation Workflow (`controllers/order.controller.ts`)
-1. User provides `courseId` and `payment_info`.
-2. Validates that the user has not already purchased the course.
-3. Sends an order confirmation invoice email (via EJS template).
-4. Adds the `courseId` to the user's `courses` array in MongoDB and updates the Redis session.
-5. Increments the course `purchased` count.
-6. Creates a new **Notification** document for the Admin Dashboard.
-
-### 2. Automated Notification Cleanup with `node-cron` (`utils/analytics.generator.ts`)
-Deletes all notifications marked as `"read"` that are older than 30 days every night at midnight:
-```typescript
-import cron from "node-cron";
-import notificationModel from "../models/notification.model";
-
-// Cron job runs at 00:00 every day
-cron.schedule("0 0 0 * * *", async () => {
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  await notificationModel.deleteMany({
-    status: "read",
-    createdAt: { $lt: thirtyDaysAgo },
-  });
-  console.log("🧹 Deleted 30-day-old read notifications");
-});
-```
-
----
-
-## 11. Step 9: Admin Dashboard & Analytics Engine
-*(Timestamp: 07:14:23 - 08:00:16)*
-
-### 12-Month Historical Analytics Generator (`utils/analytics.generator.ts`)
-Generates monthly counts of new users, course sales, and revenue for the last 12 months for rendering Admin charts.
-
-```typescript
-import { Document, Model } from "mongoose";
-
-interface MonthData {
-  month: string;
-  count: number;
-}
-
-export async function generateLast12MonthsData<T extends Document>(
-  model: Model<T>
-): Promise<{ last12Months: MonthData[] }> {
-  const last12Months: MonthData[] = [];
-  const currentDate = new Date();
-  currentDate.setDate(currentDate.getDate() + 1);
-
-  for (let i = 11; i >= 0; i--) {
-    const endDate = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth(),
-      currentDate.getDate() - i * 28
-    );
-    const startDate = new Date(
-      endDate.getFullYear(),
-      endDate.getMonth(),
-      endDate.getDate() - 28
-    );
-
-    const monthYear = endDate.toLocaleString("default", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-    const count = await model.countDocuments({
-      createdAt: {
-        $gte: startDate,
-        $lt: endDate,
-      },
-    });
-    last12Months.push({ month: monthYear, count });
-  }
-  return { last12Months };
-}
-```
-
----
-
-## 12. Step 10: Dynamic Layout Management (Hero, FAQ, Categories)
-*(Timestamp: 08:00:16 - 08:39:20)*
-
-Instead of hardcoding the homepage banner, FAQ items, and category filters, an Admin can dynamically manage them via the `Layout` model.
-
-### Layout Schema (`models/layout.model.ts`)
-```typescript
-const layoutSchema = new Schema({
-  type: { type: String }, // "Banner", "FAQ", or "Categories"
-  faq: [{ question: String, answer: String }],
-  categories: [{ title: String }],
-  banner: {
-    image: { public_id: String, url: String },
-    title: String,
-    subTitle: String,
-  },
-});
-```
-
-### Endpoints:
-- `POST /create-layout` (Admin only)
-- `PUT /edit-layout` (Admin only)
-- `GET /get-layout/:type` (Public - used by Next.js frontend to render Hero & FAQ)
-
----
-
-## 13. Step 11: Advanced Redis Caching & Cache Invalidation
-*(Timestamp: 08:39:20 - 08:55:00)*
-
-### Why Invalidate Caches?
-When an admin edits a course or updates the hero layout, visitors shouldn't see stale cached data from Redis.
-
-### Strategy:
-1. **On Read:** Check Redis for key `allCourses`. If found, return instantly. If not found, fetch from MongoDB, store in Redis, and return.
-2. **On Write/Update/Delete:** Update MongoDB **and** delete or update the Redis key (`redis.del("allCourses")`).
-
-```typescript
-// Example: Invalidate Cache on Course Update
-export const editCourse = CatchAsyncError(
-  async (req: Request, res: Response, next: NextFunction) => {
-    // 1. Update in MongoDB
-    const course = await courseModel.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    
-    // 2. Invalidate / update Redis cache
-    await redis.set(req.params.id, JSON.stringify(course));
-    await redis.del("allCourses");
-
-    res.status(200).json({ success: true, course });
-  }
-);
-```
-
----
-
-## 14. Quick Reference API Cheat Sheet
-
-### 🔐 Auth & User Routes (`/api/v1/`)
-- `POST /registration` - Register user & send OTP email
-- `POST /activate-user` - Verify OTP & create database account
-- `POST /login` - Login with email/password & receive cookies
-- `GET /logout` - Logout & clear Redis session
-- `GET /refresh` - Generate new access token using refresh token
-- `GET /me` - Get logged-in user profile
-- `PUT /update-user-info` - Update name/email
-- `PUT /update-user-password` - Update password
-- `PUT /update-user-avatar` - Upload new profile photo
-
-### 📚 Course Routes (`/api/v1/`)
-- `POST /create-course` - *(Admin)* Create new course with sections
-- `PUT /edit-course/:id` - *(Admin)* Update existing course
-- `GET /get-course/:id` - Get single course preview (Public)
-- `GET /get-courses` - Get all courses list (Public)
-- `GET /get-course-content/:id` - Get full course video content *(Enrolled users only)*
-- `PUT /add-question` - Post a question under a video
-- `PUT /add-answer` - Reply to a question & notify student
-- `PUT /add-review/:id` - Add rating and review
-- `PUT /add-reply` - *(Admin)* Reply to user review
-
-### 🛒 Order & Admin Routes (`/api/v1/`)
-- `POST /create-order` - Purchase course
-- `GET /get-notifications` - *(Admin)* Fetch real-time system alerts
-- `PUT /update-notification/:id` - *(Admin)* Mark alert as read
-- `GET /get-users-analytics` - *(Admin)* 12-month user sign-up analytics
-- `GET /get-courses-analytics` - *(Admin)* 12-month course creation analytics
-- `GET /get-orders-analytics` - *(Admin)* 12-month sales & revenue analytics
-- `POST /create-layout` / `PUT /edit-layout` - Manage Hero, FAQ, and Categories
 
