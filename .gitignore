@@ -26,9 +26,19 @@ yarn-error.log*
 
 # local env files
 .env*.local
-
+.full_project_dump.md
 # vercel
 .vercel
+full_project_dump.md
+
+# AI Agent logs, notes and specifications
+AGENT_PROGRESS.md
+LMS_Step_By_Step_Notes.md
+lms-part1-cleanup-prompt.md
+lms-part1-foundation-spec.md
+lms-part2-catalog-admin-spec.md
+lms-part3-lessons-video-spec.md
+lms-specs/
 
 # typescript
 *.tsbuildinfo
