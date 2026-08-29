@@ -18,26 +18,26 @@ An industrial-grade, full-stack Learning Management System built with **Next.js 
 
 | Part | Phase | Status | Key Deliverables |
 | :--- | :--- | :---: | :--- |
-| 1 | Foundation & Auth Engine | ✅ Completed | Next.js 15 setup, 5 Mongoose schemas, JWT cookie auth, protected dashboard |
-| 2 | Course Catalog & Admin CRUD | ✅ Completed | Public catalog, filter/search, course detail, category & course admin studio |
-| 3 | Lessons & Video Streaming | ✅ Completed | Vercel Blob video upload, admin curriculum studio, gated player, HTTP streaming |
-| 4 | Payments & Checkout | ✅ Completed | Stripe Checkout Sessions, success/cancel pages, free-course bypass, checkout API |
-| 5 | Enrollment Engine | ✅ Completed | Webhook completes purchase, purchase guard on lessons, "My Courses" |
-| 6 | Progress & Certificates | ✅ Completed | Lesson completion tracking, progress bar, printable certificate |
-| 7 | Reviews & Ratings | ✅ Completed | Star ratings, average rating, admin reply |
-| 8 | Q&A / Discussions | ✅ Completed | Per-lesson questions, threaded replies |
-| 9 | Notifications | ✅ Completed | In-app notification center, cron cleanup |
-| 10 | Admin User Management | ✅ Completed | Search/paginate users, role promote/demote, suspend |
-| 11 | Admin Analytics | ✅ Completed | Revenue/enrollment/signup charts, top courses |
-| 12 | Search, Filters & Wishlist | ✅ Completed | Sort/paginate catalog, wishlist |
-| 13 | Student Dashboard | ✅ Completed | My Learning overview, purchase history, certificates list |
-| 14 | Transactional Email | ✅ Completed | Order confirmation, welcome email |
-| 15 | Password Reset & Security | ✅ Completed | Forgot/reset password flow |
-| 16 | Automated Testing | ✅ Completed | Playwright e2e suite |
-| 17 | SEO, Performance & A11y | ✅ Completed | Metadata, sitemap, Lighthouse pass |
-| 18 | Security Hardening | ✅ Completed | Input validation, rate limiting, headers, secret rotation |
-| 19 | Deployment | ✅ Completed | Vercel prod deploy, live Stripe webhook, vercel.json config |
-| 20 | Final QA & Submission | ✅ Completed | Regression checklist, README polish, submission packaging |
+| 1 | Foundation & Auth Engine | Completed | Next.js 15 setup, 5 Mongoose schemas, JWT cookie auth, protected dashboard |
+| 2 | Course Catalog & Admin CRUD | Completed | Public catalog, filter/search, course detail, category & course admin studio |
+| 3 | Lessons & Video Streaming | Completed | Vercel Blob video upload, admin curriculum studio, gated player, HTTP streaming |
+| 4 | Payments & Checkout | Completed | Stripe Checkout Sessions, success/cancel pages, free-course bypass, checkout API |
+| 5 | Enrollment Engine | Completed | Webhook completes purchase, purchase guard on lessons, "My Courses" |
+| 6 | Progress & Certificates | Completed | Lesson completion tracking, progress bar, printable certificate |
+| 7 | Reviews & Ratings | Completed | Star ratings, average rating, admin reply |
+| 8 | Q&A / Discussions | Completed | Per-lesson questions, threaded replies |
+| 9 | Notifications | Completed | In-app notification center, cron cleanup |
+| 10 | Admin User Management | Completed | Search/paginate users, role promote/demote, suspend |
+| 11 | Admin Analytics | Completed | Revenue/enrollment/signup charts, top courses |
+| 12 | Search, Filters & Wishlist | Completed | Sort/paginate catalog, wishlist |
+| 13 | Student Dashboard | Completed | My Learning overview, purchase history, certificates list |
+| 14 | Transactional Email | Completed | Order confirmation, welcome email |
+| 15 | Password Reset & Security | Completed | Forgot/reset password flow |
+| 16 | Automated Testing | Completed | Playwright e2e suite |
+| 17 | SEO, Performance & A11y | Completed | Metadata, sitemap, Lighthouse pass |
+| 18 | Security Hardening | Completed | Input validation, rate limiting, headers, secret rotation |
+| 19 | Deployment | Completed | Vercel prod deploy, live Stripe webhook, vercel.json config |
+| 20 | Final QA & Submission | Completed | Regression checklist, README polish, submission packaging |
 
 ---
 

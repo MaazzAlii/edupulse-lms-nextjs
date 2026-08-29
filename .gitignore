@@ -31,6 +31,9 @@ yarn-error.log*
 .vercel
 full_project_dump.md
 
+# vscode
+.vscode/
+
 # AI Agent logs, notes and specifications
 AGENT_PROGRESS.md
 LMS_Step_By_Step_Notes.md
